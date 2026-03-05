@@ -20,5 +20,6 @@ Untuk kebutuhan model Machine Learning, data kategori telah diubah menjadi angka
 | Kategori | Angka |
 | :--- | :--- |
 | Staff | 0 |
-| Senior | 1 |
-| Manager | 2 |
+| junior | 1 |
+| Senior | 2 |
+| Manager | 3 |
