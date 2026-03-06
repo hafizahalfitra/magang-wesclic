@@ -1,0 +1,5 @@
+{
+  "pendidikan": { "SMA": 0, "S1": 1, "S2": 2 },
+  "jabatan": { "Junior": 0, "Staff": 1, "Senior": 2, "Manager": 3 },
+  "feature_order": ["Pendidikan_Encoded", "Jabatan_Encoded"]
+}

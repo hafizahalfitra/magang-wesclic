@@ -19,7 +19,7 @@ Untuk kebutuhan model Machine Learning, data kategori telah diubah menjadi angka
 ### Kolom Jabatan
 | Kategori | Angka |
 | :--- | :--- |
-| Staff | 0 |
-| junior | 1 |
+| junior | 0 |
+| Staff | 1 |
 | Senior | 2 |
 | Manager | 3 |
