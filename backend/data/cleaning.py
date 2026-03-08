@@ -7,7 +7,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))   # ke folder backend
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
 raw_path = os.path.join(DATA_DIR, "dataset_raw.csv")
-clean_path = os.path.join(DATA_DIR, "dataset_clean.csv")
+clean_path = os.path.join(DATA_DIR, "clean_data.csv")
 
 # 1. Daftar nama
 nama_depan = ['Andi', 'Budi', 'Caca', 'Dedi', 'Eka', 'Fahmi', 'Gita', 'Hendra', 'Indra', 'Joko']

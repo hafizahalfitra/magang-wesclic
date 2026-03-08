@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import os
+import json
 import numpy as np
 import joblib
 import pandas as pd
@@ -15,12 +16,35 @@ from sqlalchemy.sql import func
 # CONFIG
 # =========================
 MODEL_PATH = "salary_model.pkl"
-CSV_PATH = "clean_data.csv"       # posisi file sesuai screenshot kamu (di root backend)
+CSV_PATH = "clean_data.csv"     
 DATABASE_URL = "sqlite:///./employees.db"
+MAPPING_PATH = "mapping_config.json"
 
-# Mapping harus konsisten dengan Role 1
-PENDIDIKAN_MAP = {"SMA": 0, "S1": 1, "S2": 2}
-JABATAN_MAP = {"Junior": 0, "Staff": 1, "Senior": 2, "Manager": 3}
+# Default mapping (fallback)
+DEFAULT_PENDIDIKAN_MAP = {"SMA": 0, "S1": 1, "S2": 2}
+DEFAULT_JABATAN_MAP = {"Junior": 0, "Staff": 1, "Senior": 2, "Manager": 3}
+
+def load_mapping():
+    """
+    Ambil mapping dari mapping_config.json kalau ada.
+    Kalau tidak ada, pakai default mapping.
+    """
+    pendidikan_map = DEFAULT_PENDIDIKAN_MAP
+    jabatan_map = DEFAULT_JABATAN_MAP
+    feature_order = ["Pendidikan_Encoded", "Jabatan_Encoded"]
+
+    if os.path.exists(MAPPING_PATH):
+        try:
+            with open(MAPPING_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            pendidikan_map = data.get("pendidikan_map", pendidikan_map)
+            jabatan_map = data.get("jabatan_map", jabatan_map)
+            feature_order = data.get("feature_order", feature_order)
+        except Exception:
+            # kalau file mapping rusak, tetap fallback default
+            pass
+
+    return pendidikan_map, jabatan_map, feature_order
 
 # =========================
 # DB SETUP (SQLite)
@@ -37,7 +61,7 @@ class Employee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # sesuai clean_data.csv:
+    # disimpan dalam bentuk encoded agar konsisten untuk model
     Nama = Column(String(120), nullable=False)
     Pendidikan_Encoded = Column(Integer, nullable=False)  # 0..2
     Jabatan_Encoded = Column(Integer, nullable=False)     # 0..3
@@ -92,14 +116,14 @@ class PredictResponse(BaseModel):
 # APP SETUP
 # =========================
 app = FastAPI(
-    title="Prediksi Gaji API + CRUD (sesuai clean_data.csv)",
-    version="2.2.0"
+    title="Prediksi Gaji API + CRUD (compatible clean_data baru/lama)",
+    version="2.3.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # dev only
-    allow_credentials=False,    # lebih aman kalau origins="*"
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -132,10 +156,11 @@ def health():
 
 @app.get("/mapping")
 def mapping():
+    pendidikan_map, jabatan_map, feature_order = load_mapping()
     return {
-        "pendidikan_map": PENDIDIKAN_MAP,
-        "jabatan_map": JABATAN_MAP,
-        "feature_order": ["Pendidikan_Encoded", "Jabatan_Encoded"]
+        "pendidikan_map": pendidikan_map,
+        "jabatan_map": jabatan_map,
+        "feature_order": feature_order
     }
 
 # =========================
@@ -149,8 +174,6 @@ def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
     db.refresh(emp)
     return emp
 
-from sqlalchemy import or_
-
 @app.get("/employees", response_model=List[EmployeeOut])
 def list_employees(
     skip: int = 0,
@@ -159,12 +182,9 @@ def list_employees(
     db: Session = Depends(get_db)
 ):
     q = db.query(Employee)
-
-    # filter nama (case-insensitive, partial match)
     if nama and nama.strip():
         keyword = f"%{nama.strip()}%"
         q = q.filter(Employee.Nama.ilike(keyword))
-
     return q.offset(skip).limit(limit).all()
 
 @app.get("/employees/{employee_id}", response_model=EmployeeOut)
@@ -205,7 +225,6 @@ def predict(payload: PredictRequest):
     if model is None:
         raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
 
-    # urutan fitur sesuai training: [Pendidikan_Encoded, Jabatan_Encoded]
     X = np.array([[payload.Pendidikan_Encoded, payload.Jabatan_Encoded]], dtype=float)
     pred = model.predict(X)[0]
     return {"predicted_salary": int(round(float(pred))), "currency": "IDR"}
@@ -224,31 +243,50 @@ def predict_employee(employee_id: int, db: Session = Depends(get_db)):
     return {"predicted_salary": int(round(float(pred))), "currency": "IDR"}
 
 # =========================
-# SEED FROM CSV
+# SEED FROM CSV (compatible format lama & baru)
 # =========================
 @app.post("/seed-from-csv")
 def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     """
     Import data dari clean_data.csv ke database.
-
-    mode:
-      - "reset" (default): hapus semua data dulu, lalu isi dari CSV
-      - "append": langsung tambah (bisa dobel kalau dipanggil berkali-kali)
+    Support:
+      - kolom kecil/besar (Nama/nama, Pendidikan/pendidikan, dst)
+      - format encoded atau teks
     """
     if not os.path.exists(CSV_PATH):
         raise HTTPException(status_code=404, detail=f"{CSV_PATH} tidak ditemukan di folder backend")
 
-    df = pd.read_csv(CSV_PATH)
-
-    required_cols = {"Nama", "Pendidikan_Encoded", "Jabatan_Encoded", "Gaji"}
-    if not required_cols.issubset(set(df.columns)):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Kolom CSV harus punya: {sorted(list(required_cols))}. Kolom yang ada: {list(df.columns)}"
-        )
-
     if mode not in ["reset", "append"]:
         raise HTTPException(status_code=400, detail="mode harus 'reset' atau 'append'")
+
+    df = pd.read_csv(CSV_PATH)
+    df.columns = [c.strip() for c in df.columns]
+
+    # mapping asli → lowercase agar case-insensitive
+    colmap = {c.lower(): c for c in df.columns}
+
+    def col(name_lower: str):
+        return colmap.get(name_lower)
+
+    pendidikan_map, jabatan_map, _ = load_mapping()
+
+    nama_col = col("nama")
+    gaji_col = col("gaji")
+
+    pend_enc_col = col("pendidikan_encoded")
+    jab_enc_col = col("jabatan_encoded")
+
+    pend_txt_col = col("pendidikan")  # dataset baru kamu ini
+    jab_txt_col = col("jabatan")
+
+    if not nama_col:
+        raise HTTPException(status_code=400, detail=f"Kolom 'nama' tidak ada. Kolom tersedia: {df.columns.tolist()}")
+
+    if not (pend_enc_col or pend_txt_col):
+        raise HTTPException(status_code=400, detail="CSV harus punya 'pendidikan_encoded' atau 'pendidikan'")
+
+    if not (jab_enc_col or jab_txt_col):
+        raise HTTPException(status_code=400, detail="CSV harus punya 'jabatan_encoded' atau 'jabatan'")
 
     if mode == "reset":
         db.query(Employee).delete()
@@ -256,17 +294,38 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
 
     inserted = 0
     for _, row in df.iterrows():
+        nama = str(row[nama_col]).strip()
+
+        # pendidikan: encoded atau teks
+        if pend_enc_col:
+            pendidikan_enc = int(row[pend_enc_col])
+        else:
+            val = str(row[pend_txt_col]).strip()
+            if val not in pendidikan_map:
+                raise HTTPException(status_code=400, detail=f"Pendidikan tidak dikenal: '{val}'")
+            pendidikan_enc = int(pendidikan_map[val])
+
+        # jabatan: encoded atau teks
+        if jab_enc_col:
+            jabatan_enc = int(row[jab_enc_col])
+        else:
+            val = str(row[jab_txt_col]).strip()
+            if val not in jabatan_map:
+                raise HTTPException(status_code=400, detail=f"Jabatan tidak dikenal: '{val}'")
+            jabatan_enc = int(jabatan_map[val])
+
+        # gaji optional
         gaji_val = None
-        try:
-            if not pd.isna(row["Gaji"]):
-                gaji_val = float(row["Gaji"])
-        except Exception:
-            gaji_val = None
+        if gaji_col and not pd.isna(row[gaji_col]):
+            try:
+                gaji_val = float(row[gaji_col])
+            except Exception:
+                gaji_val = None
 
         emp = Employee(
-            Nama=str(row["Nama"]),
-            Pendidikan_Encoded=int(row["Pendidikan_Encoded"]),
-            Jabatan_Encoded=int(row["Jabatan_Encoded"]),
+            Nama=nama,
+            Pendidikan_Encoded=pendidikan_enc,
+            Jabatan_Encoded=jabatan_enc,
             Gaji=gaji_val
         )
         db.add(emp)
