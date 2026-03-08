@@ -1,52 +1,58 @@
 import pandas as pd
 import random
+import os
 
-# 1. Daftar Nama (Tetap sama)
-nama_depan = ['Andi', 'Budi', 'Caca', 'Dedi', 'Eka', 'Fahmi', 'Gita', 'Hendra', 'Indra', 'Joko', 'Kurniawan', 'Laras', 'Mulyono', 'Nanda', 'Oki', 'Putri', 'Qori', 'Rian', 'Santi', 'Taufik', 'Umar', 'Vina', 'Wawan', 'Xena', 'Yanto', 'Zaki', 'Aditya', 'Bella', 'Citra', 'Dimas', 'Endah', 'Ferry', 'Galih', 'Hani', 'Irfan', 'Julia', 'Kevin', 'Lestari', 'Maya', 'Nugroho', 'Okto', 'Prasetyo', 'Rina', 'Soleh', 'Tania', 'Utami', 'Vino', 'Winda', 'Yuda', 'Zahra']
-nama_belakang = ['Sanjaya', 'Santoso', 'Febriani', 'Irwansyah', 'Saputra', 'Hidayat', 'Kusuma', 'Wijaya', 'Purnama', 'Siregar', 'Permana', 'Nasution', 'Gunawan', 'Setiawan', 'Pratama', 'Utomo']
+# Path folder data
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))   # ke folder backend
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
-# 2. Logika Pembuatan Data (S2=Manager, S1=Senior, SMA=Staff/Junior)
+raw_path = os.path.join(DATA_DIR, "dataset_raw.csv")
+clean_path = os.path.join(DATA_DIR, "dataset_clean.csv")
+
+# 1. Daftar nama
+nama_depan = ['Andi', 'Budi', 'Caca', 'Dedi', 'Eka', 'Fahmi', 'Gita', 'Hendra', 'Indra', 'Joko']
+nama_belakang = ['Sanjaya', 'Santoso', 'Febriani', 'Irwansyah', 'Saputra', 'Hidayat', 'Kusuma', 'Wijaya', 'Purnama', 'Siregar']
+
+# 2. Generate data mentah
 rows = []
+
 for _ in range(50):
-    nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
-    # Pilih Pendidikan dulu sebagai penentu
-    pendidikan = random.choice(['SMA', 'S1', 'S2'])
-    
-    if pendidikan == 'S2':
-        jabatan = 'Manager'
-        gaji = random.choice([9000000, 10000000, 11500000, None]) # Proyeksi Jogja 2025-2026
-    elif pendidikan == 'S1':
-        jabatan = 'Senior'
-        gaji = random.choice([5500000, 6500000, 7500000, None])
-    else: # SMA
-        jabatan = random.choice(['Staff', 'Junior'])
-        if jabatan == 'Staff':
-            gaji = random.choice([3500000, 4200000, None])
-        else: # Junior
-            gaji = random.choice([2650000, 2800000, None]) # Minimal UMR Jogja
-            
-    rows.append([nama, pendidikan, jabatan, gaji])
+    n = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
+    p = random.choice(['SMA', 'S1', 'S2'])
 
-df = pd.DataFrame(rows, columns=['Nama', 'Pendidikan', 'Jabatan', 'Gaji'])
+    if p == 'S2':
+        j = 'Manager'
+        g = random.choice([9500000, 10500000, 12000000, None])
+    elif p == 'S1':
+        j = 'Senior'
+        g = random.choice([5500000, 6500000, 7500000, None])
+    else:
+        j = 'Staff'
+        g = random.choice([3500000, 4000000, 4500000, None])
 
-# --- SIMPAN DATA MENTAHAN (RAW) ---
-df.to_csv('raw_data.csv', index=False)
+    rows.append({
+        'nama': n,
+        'pendidikan': p,
+        'jabatan': j,
+        'gaji': g
+    })
 
-# 3. Cleaning (Isi Gaji Kosong berdasarkan rata-rata Jabatan)
-df['Gaji'] = df.groupby('Jabatan')['Gaji'].transform(lambda x: x.fillna(x.mean()))
+# 3. Buat DataFrame raw
+df = pd.DataFrame(rows)
 
-# 4. ENCODING
-df['Pendidikan_Encoded'] = df['Pendidikan'].map({'SMA': 0, 'S1': 1, 'S2': 2})
-df['Jabatan_Encoded'] = df['Jabatan'].map({'Junior': 0, 'Staff': 1, 'Senior': 2, 'Manager': 3})
+# 4. Simpan data mentah
+df.to_csv(raw_path, index=False)
 
-# 5. Tampilan Terminal
-pd.options.display.float_format = '{:,.0f}'.format
-print("\n" + "="*80)
-print("  DATA FINAL: PENDIDIKAN & JABATAN SINKRON (UMR JOGJA 2025-2026)  ")
-print("="*80)
-print(df[['Nama', 'Pendidikan', 'Jabatan', 'Gaji']].head(20))
-print("="*80)
+# 5. Cleaning sederhana
+df_clean = df.copy()
+df_clean['gaji'] = df_clean['gaji'].fillna(df_clean['gaji'].median())
+df_clean = df_clean.drop_duplicates()
+df_clean = df_clean.dropna(subset=['nama', 'pendidikan', 'jabatan'])
 
-# 6. Simpan ke CSV Bersih
-df_clean = df[['Nama', 'Pendidikan_Encoded', 'Jabatan_Encoded', 'Gaji']]
-df_clean.to_csv('clean_data.csv', index=False)
+# 6. Simpan data bersih
+df_clean.to_csv(clean_path, index=False)
+
+print("Dataset raw berhasil dibuat:", raw_path)
+print("Dataset clean berhasil dibuat:", clean_path)
+print("\nPreview data bersih:")
+print(df_clean.head())
