@@ -113,8 +113,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Load model kalau file ada
 model = None
 if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
