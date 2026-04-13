@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 from typing import Optional, List
 import os
 import json
@@ -8,16 +8,22 @@ import numpy as np
 import joblib
 import pandas as pd
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from sqlalchemy.sql import func
+from database import engine, SessionLocal, get_db, Base
+from models import Employee
+import crud
+from schemas import (
+    EmployeeCreate,
+    EmployeeUpdate,
+    EmployeeOut,
+    PredictRequest,
+    PredictResponse
+)
 
 # =========================
 # CONFIG
 # =========================
 MODEL_PATH = "salary_model.pkl"
 CSV_PATH = "clean_data.csv"     
-DATABASE_URL = "sqlite:///./employees.db"
 MAPPING_PATH = "mapping_config.json"
 
 # Default mapping (fallback)
@@ -41,83 +47,36 @@ def load_mapping():
             jabatan_map = data.get("jabatan_map", jabatan_map)
             feature_order = data.get("feature_order", feature_order)
         except Exception:
-            # kalau file mapping rusak, tetap fallback default
             pass
 
     return pendidikan_map, jabatan_map, feature_order
 
-# =========================
-# DB SETUP (SQLite)
-# =========================
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}  # khusus sqlite
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-class Employee(Base):
-    __tablename__ = "employees"
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    # disimpan dalam bentuk encoded agar konsisten untuk model
-    Nama = Column(String(120), nullable=False)
-    Pendidikan_Encoded = Column(Integer, nullable=False)  # 0..2
-    Jabatan_Encoded = Column(Integer, nullable=False)     # 0..3
-    Gaji = Column(Float, nullable=True)                   # boleh null
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
 Base.metadata.create_all(bind=engine)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# =========================
-# SCHEMAS (Pydantic)
-# =========================
-class EmployeeCreate(BaseModel):
-    Nama: str = Field(..., min_length=1, max_length=120)
-    Pendidikan_Encoded: int = Field(..., ge=0, le=2)
-    Jabatan_Encoded: int = Field(..., ge=0, le=3)
-    Gaji: Optional[float] = Field(None, ge=0)
-
-class EmployeeUpdate(BaseModel):
-    Nama: Optional[str] = Field(None, min_length=1, max_length=120)
-    Pendidikan_Encoded: Optional[int] = Field(None, ge=0, le=2)
-    Jabatan_Encoded: Optional[int] = Field(None, ge=0, le=3)
-    Gaji: Optional[float] = Field(None, ge=0)
-
-class EmployeeOut(BaseModel):
-    id: int
-    Nama: str
-    Pendidikan_Encoded: int
-    Jabatan_Encoded: int
-    Gaji: Optional[float]
-
-    class Config:
-        from_attributes = True  # pydantic v2
-
-class PredictRequest(BaseModel):
-    Pendidikan_Encoded: int = Field(..., ge=0, le=2)
-    Jabatan_Encoded: int = Field(..., ge=0, le=3)
-
-class PredictResponse(BaseModel):
-    predicted_salary: int
-    currency: str = "IDR"
+# Metadata for Swagger UI
+tags_metadata = [
+    {
+        "name": "General",
+        "description": "General system health, mapping configs, and seed data endpoints.",
+    },
+    {
+        "name": "Employee CRUD",
+        "description": "Operations to Create, Read, Update, and Delete employee data. Perfect for interacting with the Frontend.",
+    },
+    {
+        "name": "Machine Learning",
+        "description": "Predict salary based on employee attributes or specifically by employee ID.",
+    },
+]
 
 # =========================
 # APP SETUP
 # =========================
 app = FastAPI(
-    title="Prediksi Gaji API + CRUD (compatible clean_data baru/lama)",
-    version="2.3.0"
+    title="Employee Intelligence & Salary Prediction API",
+    description="Backend API with full CRUD for the Frontend, integrated with Machine Learning to predict salaries based on Employee attributes. The display is carefully customized for ease of testing data.",
+    version="3.0.0",
+    openapi_tags=tags_metadata
 )
 
 app.add_middleware(
@@ -136,26 +95,26 @@ if os.path.exists(MODEL_PATH):
 # =========================
 # BASIC ENDPOINTS
 # =========================
-@app.get("/")
+@app.get("/", tags=["General"])
 def root():
     return {
-        "message": "API is running. Open /docs",
+        "message": "Welcome to the Employee Intelligence API. Please visit /docs for the interactive administrative panel.",
         "endpoints": {
+            "docs": "/docs",
             "employees": "/employees",
             "predict": "POST /predict",
-            "predict_by_employee": "POST /employees/{id}/predict",
-            "seed": "POST /seed-from-csv",
-            "mapping": "/mapping",
             "health": "/health",
         }
     }
 
-@app.get("/health")
+@app.get("/health", tags=["General"], summary="Check system health")
 def health():
+    """Verify that backend and ML model are properly loaded."""
     return {"status": "ok", "model_loaded": model is not None}
 
-@app.get("/mapping")
+@app.get("/mapping", tags=["General"], summary="Get data mapping configurations")
 def mapping():
+    """Returns mapping configurations for education and position levels used by the ML model."""
     pendidikan_map, jabatan_map, feature_order = load_mapping()
     return {
         "pendidikan_map": pendidikan_map,
@@ -166,62 +125,51 @@ def mapping():
 # =========================
 # CRUD EMPLOYEES
 # =========================
-@app.post("/employees", response_model=EmployeeOut, status_code=201)
+@app.post("/employees", response_model=EmployeeOut, status_code=201, tags=["Employee CRUD"], summary="Add a new Employee")
 def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
-    emp = Employee(**payload.model_dump())
-    db.add(emp)
-    db.commit()
-    db.refresh(emp)
-    return emp
+    """Add a new employee to the database specifying their characteristics."""
+    return crud.create_employee(db=db, payload=payload)
 
-@app.get("/employees", response_model=List[EmployeeOut])
+@app.get("/employees", response_model=List[EmployeeOut], tags=["Employee CRUD"], summary="Get list of Employees")
 def list_employees(
     skip: int = 0,
     limit: int = 50,
     nama: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    q = db.query(Employee)
-    if nama and nama.strip():
-        keyword = f"%{nama.strip()}%"
-        q = q.filter(Employee.Nama.ilike(keyword))
-    return q.offset(skip).limit(limit).all()
+    """Retrieve employees with optional limit, skip and search by name. Easy to call from frontend tables/grids."""
+    return crud.list_employees(db=db, skip=skip, limit=limit, nama=nama)
 
-@app.get("/employees/{employee_id}", response_model=EmployeeOut)
+@app.get("/employees/{employee_id}", response_model=EmployeeOut, tags=["Employee CRUD"], summary="Get specific Employee details")
 def get_employee(employee_id: int, db: Session = Depends(get_db)):
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    """Fetch an individual employee by their ID."""
+    emp = crud.get_employee(db=db, employee_id=employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     return emp
 
-@app.put("/employees/{employee_id}", response_model=EmployeeOut)
+@app.put("/employees/{employee_id}", response_model=EmployeeOut, tags=["Employee CRUD"], summary="Update Employee information")
 def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Depends(get_db)):
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    """Update characteristics or salary constraint of an employee."""
+    emp = crud.update_employee(db=db, employee_id=employee_id, payload=payload)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
-
-    data = payload.model_dump(exclude_unset=True)
-    for k, v in data.items():
-        setattr(emp, k, v)
-
-    db.commit()
-    db.refresh(emp)
     return emp
 
-@app.delete("/employees/{employee_id}", status_code=204)
+@app.delete("/employees/{employee_id}", status_code=204, tags=["Employee CRUD"], summary="Remove an Employee")
 def delete_employee(employee_id: int, db: Session = Depends(get_db)):
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
-    if not emp:
+    """Delete an employee completely."""
+    success = crud.delete_employee(db=db, employee_id=employee_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Employee not found")
-    db.delete(emp)
-    db.commit()
     return None
 
 # =========================
 # PREDICT
 # =========================
-@app.post("/predict", response_model=PredictResponse)
+@app.post("/predict", response_model=PredictResponse, tags=["Machine Learning"], summary="Predict Salary (Standalone)")
 def predict(payload: PredictRequest):
+    """Predict a salary based on custom attributes not tied to a specific employee ID."""
     if model is None:
         raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
 
@@ -229,12 +177,13 @@ def predict(payload: PredictRequest):
     pred = model.predict(X)[0]
     return {"predicted_salary": int(round(float(pred))), "currency": "IDR"}
 
-@app.post("/employees/{employee_id}/predict", response_model=PredictResponse)
+@app.post("/employees/{employee_id}/predict", response_model=PredictResponse, tags=["Machine Learning"], summary="Predict Employee's Salary")
 def predict_employee(employee_id: int, db: Session = Depends(get_db)):
+    """Automatically fetch an employee's attributes and predict what their salary should be using the ML brain."""
     if model is None:
         raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
 
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    emp = crud.get_employee(db=db, employee_id=employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
@@ -243,15 +192,15 @@ def predict_employee(employee_id: int, db: Session = Depends(get_db)):
     return {"predicted_salary": int(round(float(pred))), "currency": "IDR"}
 
 # =========================
-# SEED FROM CSV (compatible format lama & baru)
+# SEED FROM CSV
 # =========================
-@app.post("/seed-from-csv")
+@app.post("/seed-from-csv", tags=["General"], summary="Bulk import data from CSV")
 def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     """
-    Import data dari clean_data.csv ke database.
-    Support:
-      - kolom kecil/besar (Nama/nama, Pendidikan/pendidikan, dst)
-      - format encoded atau teks
+    Import data from clean_data.csv into the database.
+    Supported modes:
+      - 'reset': Deletes all existing employees and loads from CSV.
+      - 'append': Adds CSV data without deleting existing ones.
     """
     if not os.path.exists(CSV_PATH):
         raise HTTPException(status_code=404, detail=f"{CSV_PATH} tidak ditemukan di folder backend")
@@ -262,25 +211,20 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     df = pd.read_csv(CSV_PATH)
     df.columns = [c.strip() for c in df.columns]
 
-    # mapping asli → lowercase agar case-insensitive
     colmap = {c.lower(): c for c in df.columns}
-
-    def col(name_lower: str):
-        return colmap.get(name_lower)
+    def col(name_lower: str): return colmap.get(name_lower)
 
     pendidikan_map, jabatan_map, _ = load_mapping()
 
     nama_col = col("nama")
     gaji_col = col("gaji")
-
     pend_enc_col = col("pendidikan_encoded")
     jab_enc_col = col("jabatan_encoded")
-
-    pend_txt_col = col("pendidikan")  # dataset baru kamu ini
+    pend_txt_col = col("pendidikan")
     jab_txt_col = col("jabatan")
 
     if not nama_col:
-        raise HTTPException(status_code=400, detail=f"Kolom 'nama' tidak ada. Kolom tersedia: {df.columns.tolist()}")
+        raise HTTPException(status_code=400, detail=f"Kolom 'nama' tidak ada. Tersedia: {df.columns.tolist()}")
 
     if not (pend_enc_col or pend_txt_col):
         raise HTTPException(status_code=400, detail="CSV harus punya 'pendidikan_encoded' atau 'pendidikan'")
@@ -296,7 +240,6 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     for _, row in df.iterrows():
         nama = str(row[nama_col]).strip()
 
-        # pendidikan: encoded atau teks
         if pend_enc_col:
             pendidikan_enc = int(row[pend_enc_col])
         else:
@@ -305,7 +248,6 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail=f"Pendidikan tidak dikenal: '{val}'")
             pendidikan_enc = int(pendidikan_map[val])
 
-        # jabatan: encoded atau teks
         if jab_enc_col:
             jabatan_enc = int(row[jab_enc_col])
         else:
@@ -314,7 +256,6 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail=f"Jabatan tidak dikenal: '{val}'")
             jabatan_enc = int(jabatan_map[val])
 
-        # gaji optional
         gaji_val = None
         if gaji_col and not pd.isna(row[gaji_col]):
             try:
@@ -322,14 +263,13 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
             except Exception:
                 gaji_val = None
 
-        emp = Employee(
+        payload = EmployeeCreate(
             Nama=nama,
             Pendidikan_Encoded=pendidikan_enc,
             Jabatan_Encoded=jabatan_enc,
             Gaji=gaji_val
         )
-        db.add(emp)
+        crud.create_employee(db=db, payload=payload)
         inserted += 1
 
-    db.commit()
     return {"message": "seed success", "inserted": inserted, "mode": mode}

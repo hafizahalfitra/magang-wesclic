@@ -12,8 +12,12 @@ def create_employee(db: Session, payload: EmployeeCreate) -> Employee:
 def get_employee(db: Session, employee_id: int) -> Employee | None:
     return db.query(Employee).filter(Employee.id == employee_id).first()
 
-def list_employees(db: Session, skip: int = 0, limit: int = 50) -> list[Employee]:
-    return db.query(Employee).offset(skip).limit(limit).all()
+def list_employees(db: Session, skip: int = 0, limit: int = 50, nama: str | None = None) -> list[Employee]:
+    q = db.query(Employee)
+    if nama and nama.strip():
+        keyword = f"%{nama.strip()}%"
+        q = q.filter(Employee.Nama.ilike(keyword))
+    return q.offset(skip).limit(limit).all()
 
 def update_employee(db: Session, employee_id: int, payload: EmployeeUpdate) -> Employee | None:
     emp = get_employee(db, employee_id)
