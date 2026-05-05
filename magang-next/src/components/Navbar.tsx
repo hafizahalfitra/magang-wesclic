@@ -1,11 +1,12 @@
 'use client';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 export default function Navbar() {
     const navLinks = [
-        { name: 'Home', href: '#home' },
-        { name: 'Tentang', href: '#tentang' },
-        { name: 'Prediksi', href: '#prediksi' },
+        { name: 'Home', href: '/' },
+        { name: 'Tentang', href: '/#tentang' },
+        { name: 'Prediksi', href: '/#prediksi' },
     ];
 
     return (
@@ -37,36 +38,37 @@ export default function Navbar() {
                 {/* Desktop Navigation */}
                 <nav className="hidden flex-1 items-center justify-center gap-x-8 md:flex">
                     {navLinks.map((link) => (
-                        <a
+                        <Link
                             key={link.name}
                             href={link.href}
                             className="group relative py-1 text-sm font-semibold text-gray-600 transition-colors hover:text-[#13624C]"
                         >
                             {link.name}
                             <span className="absolute inset-x-0 -bottom-1 h-0.5 scale-x-0 bg-[#13624C] transition-transform duration-300 group-hover:scale-x-100" />
-                        </a>
+                        </Link>
                     ))}
 
                     <div className="h-4 w-[1px] bg-gray-200" />
 
-                    <a
+                    <Link
                         href="/data-karyawan"
                         className="text-sm font-semibold text-gray-600 transition-colors hover:text-[#13624C]"
                     >
                         Data Karyawan
-                    </a>
+                    </Link>
                 </nav>
 
                 {/* Action Button */}
                 <div className="flex items-center gap-3">
-                    <motion.a
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        href="#prediksi"
-                        className="inline-flex items-center justify-center rounded-full bg-[#13624C] px-5 py-2 text-sm font-bold text-white shadow-md shadow-[#13624C]/20 transition-all"
-                    >
-                        Coba Sekarang
-                    </motion.a>
+                    <Link href="/#prediksi" passHref>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center justify-center rounded-full bg-[#13624C] px-5 py-2 text-sm font-bold text-white shadow-md shadow-[#13624C]/20 transition-all"
+                        >
+                            Coba Sekarang
+                        </motion.button>
+                    </Link>
                 </div>
 
             </div>
