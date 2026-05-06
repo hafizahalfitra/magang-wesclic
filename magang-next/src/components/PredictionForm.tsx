@@ -6,8 +6,9 @@ import { predictSalary } from "@/src/services/predictionService";
 type FormDataType = {
     nama: string;
     umur: string;
-    pendidikan: string;
     pengalamanKerja: string;
+    statusKaryawan: string;
+    divisi: string;
     jabatan: string;
 };
 
@@ -22,8 +23,9 @@ export default function PredictionForm() {
     const [formData, setFormData] = useState<FormDataType>({
         nama: "",
         umur: "",
-        pendidikan: "",
         pengalamanKerja: "",
+        statusKaryawan: "",
+        divisi: "",
         jabatan: "",
     });
 
@@ -49,8 +51,8 @@ export default function PredictionForm() {
         return "Tinggi";
     };
 
-    const getInsight = (pendidikan: string, jabatan: string) => {
-        return `Berdasarkan kualifikasi pendidikan ${pendidikan} dan posisi sebagai ${jabatan}, estimasi ini mencerminkan standar pasar untuk peran tersebut di industri teknologi saat ini.`;
+    const getInsight = (divisi: string, jabatan: string) => {
+        return `Berdasarkan divisi ${divisi} dan posisi sebagai ${jabatan}, estimasi ini mencerminkan standar pasar untuk peran tersebut di industri teknologi saat ini.`;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -60,36 +62,33 @@ export default function PredictionForm() {
 
         // Validasi Umur
         const umurNum = Number(formData.umur);
-        if (umurNum < 18 || umurNum > 65) {
-            setError("Umur harus antara 18 sampai 65 tahun.");
-            return;
-        }
-
-        // Validasi Pengalaman Kerja
-        if (Number(formData.pengalamanKerja) < 0) {
-            setError("Pengalaman kerja tidak boleh negatif.");
+        if (!formData.umur || umurNum < 18 || umurNum > 65) {
+            setError("Umur wajib diisi dan harus antara 18 sampai 65 tahun.");
             return;
         }
 
         setLoading(true);
 
         // Mapping
-        const pendidikanMap: Record<string, number> = {
-            "SMA/SMK": 0,
-            "S1": 1,
-            "S2": 2,
+        const divisiMap: Record<string, number> = {
+            "Engineering": 1,
+            "Product & Design": 2,
+            "Data & AI": 3,
+            "Growth & Marketing": 4,
+            "People & Operations": 5,
         };
 
         const jabatanMap: Record<string, number> = {
-            "Junior": 0,
-            "Staff": 1,
-            "Senior": 2,
-            "Manager": 3,
+            "Manajer": 4,
+            "SPV": 5,
+            "STAF": 6,
+            "Junior": 7,
         };
 
         try {
             const data = await predictSalary({
-                Pendidikan_Encoded: pendidikanMap[formData.pendidikan],
+                umur: umurNum,
+                Divisi_Encoded: divisiMap[formData.divisi],
                 Jabatan_Encoded: jabatanMap[formData.jabatan],
             });
 
@@ -97,7 +96,7 @@ export default function PredictionForm() {
                 salary: data.predicted_salary,
                 currency: data.currency,
                 category: getSalaryCategory(data.predicted_salary),
-                insight: getInsight(formData.pendidikan, formData.jabatan),
+                insight: getInsight(formData.divisi, formData.jabatan),
             });
             setSubmitted(true);
         } catch (err) {
@@ -133,57 +132,75 @@ export default function PredictionForm() {
                     />
                 </div>
 
-                <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Umur
-                    </label>
-                    <input
-                        type="number"
-                        name="umur"
-                        value={formData.umur}
-                        onChange={handleChange}
-                        placeholder="Masukkan umur"
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
-                        required
-                    />
+                <div className="md:col-span-2 grid gap-5 md:grid-cols-3">
+                    <div>
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
+                            Umur <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="umur"
+                            value={formData.umur}
+                            onChange={handleChange}
+                            placeholder="Contoh: 25"
+                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
+                            Pengalaman Kerja (Tahun)
+                        </label>
+                        <input
+                            type="number"
+                            name="pengalamanKerja"
+                            value={formData.pengalamanKerja}
+                            onChange={handleChange}
+                            placeholder="Contoh: 3"
+                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
+                            Status Karyawan
+                        </label>
+                        <select
+                            name="statusKaryawan"
+                            value={formData.statusKaryawan}
+                            onChange={handleChange}
+                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        >
+                            <option value="">Pilih status</option>
+                            <option value="Kontrak">Kontrak</option>
+                            <option value="Tetap">Tetap</option>
+                            <option value="Probation">Probation</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Pendidikan
+                        Divisi <span className="text-red-500">*</span>
                     </label>
                     <select
-                        name="pendidikan"
-                        value={formData.pendidikan}
+                        name="divisi"
+                        value={formData.divisi}
                         onChange={handleChange}
                         className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
                         required
                     >
-                        <option value="">Pilih pendidikan</option>
-                        <option value="SMA/SMK">SMA / SMK</option>
-                        <option value="S1">S1</option>
-                        <option value="S2">S2</option>
+                        <option value="">Pilih divisi</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Product & Design">Product & Design</option>
+                        <option value="Data & AI">Data & AI</option>
+                        <option value="Growth & Marketing">Growth & Marketing</option>
+                        <option value="People & Operations">People & Operations</option>
                     </select>
                 </div>
 
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Pengalaman Kerja
-                    </label>
-                    <input
-                        type="number"
-                        name="pengalamanKerja"
-                        value={formData.pengalamanKerja}
-                        onChange={handleChange}
-                        placeholder="Masukkan pengalaman kerja (tahun)"
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
-                        required
-                    />
-                </div>
-
-                <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Jabatan
+                        Jabatan <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="jabatan"
@@ -193,10 +210,10 @@ export default function PredictionForm() {
                         required
                     >
                         <option value="">Pilih jabatan</option>
+                        <option value="Manajer">Manajer</option>
+                        <option value="SPV">SPV</option>
+                        <option value="STAF">STAF</option>
                         <option value="Junior">Junior</option>
-                        <option value="Staff">Staff</option>
-                        <option value="Senior">Senior</option>
-                        <option value="Manager">Manager</option>
                     </select>
                 </div>
 
