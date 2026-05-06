@@ -1,5 +1,6 @@
 export interface PredictionRequest {
-  Pendidikan_Encoded: number;
+  umur: number;
+  Divisi_Encoded: number;
   Jabatan_Encoded: number;
 }
 

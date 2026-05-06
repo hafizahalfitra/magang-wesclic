@@ -36,7 +36,8 @@ DEFAULT_JABATAN_MAP = {
     "CTO": 3,
     "Manajer": 4,
     "SPV": 5,
-    "STAF": 6
+    "STAF": 6,
+    "Junior": 7
 }
 
 # Mapping divisi untuk kebutuhan prediksi divisi
@@ -46,7 +47,7 @@ DEFAULT_DIVISI_MAP = {
     "Product & Design": 2,
     "Data & AI": 3,
     "Growth & Marketing": 4,
-    "People & Ops": 5
+    "People & Operations": 5
 }
 
 
@@ -58,11 +59,10 @@ def load_mapping():
     """
     Ambil mapping dari mapping_config.json kalau ada.
     Kalau tidak ada, pakai default mapping.
-    Pendidikan sudah tidak digunakan.
     """
     jabatan_map = DEFAULT_JABATAN_MAP
     divisi_map = DEFAULT_DIVISI_MAP
-    feature_order = ["Jabatan_Encoded"]
+    feature_order = ["Jabatan_Encoded", "Divisi_Encoded"]
 
     if os.path.exists(MAPPING_PATH):
         try:
@@ -128,7 +128,7 @@ def root():
             "docs": "/docs",
             "employees": "/employees",
             "predict": "POST /predict",
-            "predict_divisi": "GET /predict-divisi?divisi=Engineering&bulan=6",
+            "predict_divisi": "GET /predict-divisi?divisi=Engineering",
             "health": "/health",
             "seed": "POST /seed-from-csv"
         }
@@ -198,21 +198,18 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db)):
 
 
 # =========================
-# PREDICT GAJI LAMA
+# PREDICT GAJI
 # =========================
 @app.post("/predict", response_model=PredictResponse, tags=["Machine Learning"], summary="Predict Salary Standalone")
 def predict(payload: PredictRequest):
     """
-    Endpoint prediksi lama.
-    Catatan:
-    Endpoint ini masih mengikuti schema lama.
-    Kalau model lama masih pakai Pendidikan_Encoded dan Jabatan_Encoded, endpoint ini tetap bisa berjalan.
+    Endpoint prediksi gaji karyawan baru berdasarkan Jabatan dan Divisi.
     """
     if model is None:
         raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
 
-    # Tetap mengikuti format lama agar tidak merusak frontend/schema lama
-    X = np.array([[payload.Pendidikan_Encoded, payload.Jabatan_Encoded]], dtype=float)
+    # Menggunakan Jabatan_Encoded dan Divisi_Encoded
+    X = np.array([[payload.Jabatan_Encoded, payload.Divisi_Encoded]], dtype=float)
     pred = model.predict(X)[0]
 
     return {
@@ -224,8 +221,7 @@ def predict(payload: PredictRequest):
 @app.post("/employees/{employee_id}/predict", response_model=PredictResponse, tags=["Machine Learning"], summary="Predict Employee's Salary")
 def predict_employee(employee_id: int, db: Session = Depends(get_db)):
     """
-    Endpoint prediksi karyawan lama.
-    Masih memakai Pendidikan_Encoded dan Jabatan_Encoded dari database lama.
+    Endpoint prediksi karyawan yang sudah ada di database.
     """
     if model is None:
         raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
@@ -234,7 +230,7 @@ def predict_employee(employee_id: int, db: Session = Depends(get_db)):
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    X = np.array([[emp.Pendidikan_Encoded, emp.Jabatan_Encoded]], dtype=float)
+    X = np.array([[emp.Jabatan_Encoded, emp.Divisi_Encoded]], dtype=float)
     pred = model.predict(X)[0]
 
     return {
@@ -246,13 +242,13 @@ def predict_employee(employee_id: int, db: Session = Depends(get_db)):
 # =========================
 # PREDICT TOTAL GAJI BY DIVISI
 # =========================
-@app.get("/predict-divisi", tags=["Machine Learning"], summary="Predict total salary by division and month")
-def predict_divisi(divisi: str, bulan: int):
+@app.get("/predict-divisi", tags=["Machine Learning"], summary="Predict total salary by division")
+def predict_divisi(divisi: str):
     """
-    Menghitung estimasi total gaji berdasarkan divisi dan bulan.
+    Menghitung estimasi total gaji berdasarkan divisi.
 
     Contoh:
-    /predict-divisi?divisi=Engineering&bulan=6
+    /predict-divisi?divisi=Engineering
     """
     if not os.path.exists(CSV_PATH):
         raise HTTPException(
@@ -263,7 +259,7 @@ def predict_divisi(divisi: str, bulan: int):
     df = pd.read_csv(CSV_PATH)
     df.columns = [c.strip() for c in df.columns]
 
-    required_columns = ["Nama", "Jabatan", "Divisi", "Sub_Divisi", "Bulan", "Gaji"]
+    required_columns = ["Nama", "Jabatan", "Divisi", "Gaji"]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
@@ -272,19 +268,15 @@ def predict_divisi(divisi: str, bulan: int):
             detail=f"Kolom CSV tidak lengkap. Kolom yang hilang: {missing_columns}. Kolom tersedia: {df.columns.tolist()}"
         )
 
-    hasil = df[
-        (df["Divisi"].astype(str).str.lower() == divisi.lower()) &
-        (df["Bulan"].astype(int) == bulan)
-    ]
+    hasil = df[df["Divisi"].astype(str).str.lower() == divisi.lower()]
 
     if hasil.empty:
         return {
             "divisi": divisi,
-            "bulan": bulan,
             "jumlah_karyawan": 0,
             "total_gaji": 0,
             "total_gaji_format": format_rupiah(0),
-            "message": "Data tidak ditemukan untuk divisi dan bulan tersebut.",
+            "message": "Data tidak ditemukan untuk divisi tersebut.",
             "data_karyawan": []
         }
 
@@ -297,15 +289,12 @@ def predict_divisi(divisi: str, bulan: int):
             "nama": row["Nama"],
             "jabatan": row["Jabatan"],
             "divisi": row["Divisi"],
-            "sub_divisi": row["Sub_Divisi"],
-            "bulan": int(row["Bulan"]),
             "gaji": int(row["Gaji"]),
             "gaji_format": format_rupiah(int(row["Gaji"]))
         })
 
     return {
         "divisi": divisi,
-        "bulan": bulan,
         "jumlah_karyawan": jumlah_karyawan,
         "total_gaji": total_gaji,
         "total_gaji_format": format_rupiah(total_gaji),
@@ -346,9 +335,7 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     Import data dari backend/data/dataset_clean.csv ke database.
 
     Catatan:
-    Dataset baru sudah tidak punya Pendidikan.
-    Karena struktur database lama masih memakai Pendidikan_Encoded,
-    maka Pendidikan_Encoded diisi default 0 agar seed tetap berjalan.
+    Dataset baru sudah terupdate menggunakan Jabatan dan Divisi.
     """
     if not os.path.exists(CSV_PATH):
         raise HTTPException(
@@ -362,7 +349,7 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     df = pd.read_csv(CSV_PATH)
     df.columns = [c.strip() for c in df.columns]
 
-    required_columns = ["Nama", "Jabatan", "Gaji"]
+    required_columns = ["Nama", "Jabatan", "Divisi", "Gaji"]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
@@ -371,7 +358,7 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
             detail=f"Kolom CSV tidak lengkap. Kolom yang hilang: {missing_columns}. Kolom tersedia: {df.columns.tolist()}"
         )
 
-    jabatan_map, _, _ = load_mapping()
+    jabatan_map, divisi_map, _ = load_mapping()
 
     if mode == "reset":
         db.query(Employee).delete()
@@ -383,12 +370,14 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
     for _, row in df.iterrows():
         nama = str(row["Nama"]).strip()
         jabatan = str(row["Jabatan"]).strip()
+        divisi = str(row["Divisi"]).strip()
 
-        if jabatan not in jabatan_map:
+        if jabatan not in jabatan_map or divisi not in divisi_map:
             skipped += 1
             continue
 
         jabatan_enc = int(jabatan_map[jabatan])
+        divisi_enc = int(divisi_map[divisi])
 
         gaji_val = None
         if "Gaji" in df.columns and not pd.isna(row["Gaji"]):
@@ -399,10 +388,7 @@ def seed_from_csv(mode: str = "reset", db: Session = Depends(get_db)):
 
         payload = EmployeeCreate(
             Nama=nama,
-
-            # Dummy karena schema/database lama kemungkinan masih mewajibkan Pendidikan_Encoded
-            Pendidikan_Encoded=0,
-
+            Divisi_Encoded=divisi_enc,
             Jabatan_Encoded=jabatan_enc,
             Gaji=gaji_val
         )

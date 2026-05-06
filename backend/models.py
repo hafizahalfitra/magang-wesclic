@@ -9,8 +9,8 @@ class Employee(Base):
 
     # sesuai clean_data.csv:
     Nama = Column(String(120), nullable=False)
-    Pendidikan_Encoded = Column(Integer, nullable=False)  # 0..2
-    Jabatan_Encoded = Column(Integer, nullable=False)     # 0..3
+    Divisi_Encoded = Column(Integer, nullable=False)  # 0..5
+    Jabatan_Encoded = Column(Integer, nullable=False)     # 0..7
     Gaji = Column(Float, nullable=True)  # boleh null kalau belum punya gaji asli
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

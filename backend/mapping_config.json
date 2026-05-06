@@ -1,18 +1,25 @@
 {
-  "pendidikan_map": {
-    "SMA": 0,
-    "S1": 1,
-    "S2": 2
+  "divisi_map": {
+    "Executive": 0,
+    "Engineering": 1,
+    "Product & Design": 2,
+    "Data & AI": 3,
+    "Growth & Marketing": 4,
+    "People & Operations": 5
   },
   "jabatan_map": {
-    "Junior": 0,
-    "Staff": 1,
-    "Senior": 2,
-    "Manager": 3
+    "CEO": 0,
+    "CFO": 1,
+    "CMO": 2,
+    "CTO": 3,
+    "Manajer": 4,
+    "SPV": 5,
+    "STAF": 6,
+    "Junior": 7
   },
   "feature_order": [
-    "pendidikan",
-    "jabatan"
+    "Jabatan",
+    "Divisi"
   ],
-  "target": "gaji"
+  "target": "Gaji"
 }

@@ -11,7 +11,7 @@ function Footer() {
         <div className="space-y-4">
           <img src="/logo.png" alt="Wesclic Logo" className="h-10 w-auto brightness-0 invert" />
           <p className="text-sm leading-relaxed text-white/90">
-            <strong className="block text-white mb-2">We Make IT Better.</strong> 
+            <strong className="block text-white mb-2">We Make IT Better.</strong>
             Kami hadir untuk menyederhanakan kompleksitas, mengubah ide menjadi inovasi, dan memastikan setiap teknologi yang kami bangun memberikan dampak nyata buat bisnis kamu.
           </p>
           <div className="flex gap-3 pt-2">
@@ -46,7 +46,7 @@ function Footer() {
 
       {/* Baris Bawah */}
       <div className="mx-auto max-w-7xl mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs text-white/60 gap-4">
-        <p>© 2026 Wesclic Technology. Hak Cipta Dilindungi. | Dibuat dengan ❤️ di Indonesia</p>
+        <p>© 2026 Wesclic Technology. Hak Cipta Dilindungi.</p>
         <div className="flex gap-6">
           <span className="hover:text-white cursor-pointer">Kebijakan Privasi</span>
           <span className="hover:text-white cursor-pointer">Syarat Layanan</span>
