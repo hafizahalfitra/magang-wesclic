@@ -462,6 +462,73 @@ def predict_divisi(divisi: str):
 
 
 # =========================
+# PREDICT SALARY (DATASET-BASED)
+# =========================
+@app.get("/predict-salary", tags=["Machine Learning"], summary="Predict salary by division, job, experience, and age")
+def predict_salary(divisi: str, jabatan: str, pengalaman: float = 0, umur: int = 0):
+    """
+    Prediksi gaji berdasarkan Divisi dan Jabatan langsung dari dataset_clean.csv.
+    Pengalaman dan umur diterima sebagai parameter opsional untuk penyesuaian di masa depan.
+    """
+    if not os.path.exists(CSV_PATH):
+        raise HTTPException(
+            status_code=404,
+            detail=f"File dataset_clean.csv tidak ditemukan di path: {CSV_PATH}. Jalankan dulu python data/cleaning.py"
+        )
+
+    df = pd.read_csv(CSV_PATH)
+    df.columns = [c.strip() for c in df.columns]
+
+    required_columns = ["Nama", "Jabatan", "Divisi", "Gaji"]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+
+    if missing_columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Kolom CSV tidak lengkap. Kolom hilang: {missing_columns}. Kolom tersedia: {df.columns.tolist()}"
+        )
+
+    hasil = df[
+        (df["Divisi"].astype(str).str.lower() == divisi.lower()) &
+        (df["Jabatan"].astype(str).str.lower() == jabatan.lower())
+    ]
+
+    if hasil.empty:
+        return {
+            "divisi": divisi,
+            "jabatan": jabatan,
+            "pengalaman": pengalaman,
+            "umur": umur,
+            "base_salary": 0,
+            "predicted_salary": 0,
+            "predicted_salary_format": format_rupiah(0),
+            "currency": "IDR",
+            "message": "Data gaji untuk divisi dan jabatan tersebut tidak ditemukan."
+        }
+
+    base_salary = int(round(float(hasil["Gaji"].mean())))
+
+    # Untuk menjaga hasil tetap sesuai dataset clean, adjustment dibuat 0 dulu.
+    # Jika nanti ingin dikembangkan, pengalaman bisa dipakai sebagai tambahan kecil.
+    adjustment = 0
+
+    predicted_salary = base_salary + adjustment
+
+    return {
+        "divisi": divisi,
+        "jabatan": jabatan,
+        "pengalaman": pengalaman,
+        "umur": umur,
+        "base_salary": base_salary,
+        "adjustment": adjustment,
+        "predicted_salary": predicted_salary,
+        "base_salary_format": format_rupiah(base_salary),
+        "predicted_salary_format": format_rupiah(predicted_salary),
+        "currency": "IDR"
+    }
+
+
+# =========================
 # LIST DIVISI
 # =========================
 @app.get("/divisi", tags=["General"], summary="Get available divisions from CSV")

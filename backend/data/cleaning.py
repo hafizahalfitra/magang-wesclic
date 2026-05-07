@@ -18,33 +18,33 @@ standar_gaji = {
     },
     "People & Operations": {
         "Junior": 2800000,
-        "Staff": 3200000,
-        "Senior": 4500000,
-        "Manager": 7500000
+        "STAF": 3200000,
+        "SPV": 4500000,
+        "Manajer": 7500000
     },
     "Growth & Marketing": {
         "Junior": 2850000,
-        "Staff": 3500000,
-        "Senior": 5000000,
-        "Manager": 8500000
+        "STAF": 3500000,
+        "SPV": 5000000,
+        "Manajer": 8500000
     },
     "Product & Design": {
         "Junior": 3000000,
-        "Staff": 4000000,
-        "Senior": 6000000,
-        "Manager": 10000000
+        "STAF": 4000000,
+        "SPV": 6000000,
+        "Manajer": 10000000
     },
     "Engineering": {
         "Junior": 3200000,
-        "Staff": 4500000,
-        "Senior": 7500000,
-        "Manager": 12000000
+        "STAF": 4500000,
+        "SPV": 7500000,
+        "Manajer": 12000000
     },
     "Data & AI": {
         "Junior": 3500000,
-        "Staff": 5000000,
-        "Senior": 8500000,
-        "Manager": 14000000
+        "STAF": 5000000,
+        "SPV": 8500000,
+        "Manajer": 14000000
     }
 }
 
@@ -176,18 +176,18 @@ def get_level_gaji(jabatan):
         return "C-Level"
 
     if jabatan == "Manajer":
-        return "Manager"
+        return "Manajer"
 
     if jabatan == "SPV":
-        return "Senior"
+        return "SPV"
 
     if jabatan == "Junior":
         return "Junior"
 
     if jabatan == "STAF":
-        return "Staff"
+        return "STAF"
 
-    return "Staff"
+    return "STAF"
 
 
 # =========================
@@ -201,7 +201,7 @@ def get_gaji(divisi, jabatan):
         divisi = "Engineering"
 
     if level_gaji not in standar_gaji[divisi]:
-        level_gaji = "Staff"
+        level_gaji = "STAF"
 
     return standar_gaji[divisi][level_gaji]
 

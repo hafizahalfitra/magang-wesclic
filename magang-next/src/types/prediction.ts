@@ -9,6 +9,28 @@ export interface PredictionResponse {
   currency: string;
 }
 
+// Tipe untuk endpoint /predict-salary berbasis dataset_clean.csv
+export interface SalaryRequest {
+  divisi: string;
+  jabatan: string;
+  pengalaman?: number;
+  umur?: number;
+}
+
+export interface SalaryResponse {
+  divisi: string;
+  jabatan: string;
+  pengalaman: number;
+  umur: number;
+  base_salary: number;
+  adjustment: number;
+  predicted_salary: number;
+  base_salary_format: string;
+  predicted_salary_format: string;
+  currency: string;
+  message?: string;
+}
+
 export interface ForecastBreakdown {
   position: string;
   count: number;

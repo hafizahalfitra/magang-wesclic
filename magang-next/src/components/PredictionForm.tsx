@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { predictSalary } from "@/src/services/predictionService";
+import { predictSalaryByDataset } from "@/src/services/predictionService";
 
 type FormDataType = {
     nama: string;
@@ -14,6 +14,7 @@ type FormDataType = {
 
 interface PredictionResult {
     salary: number;
+    salaryFormat: string;
     currency: string;
     category: string;
     insight: string;
@@ -69,31 +70,22 @@ export default function PredictionForm() {
 
         setLoading(true);
 
-        // Mapping
-        const divisiMap: Record<string, number> = {
-            "Engineering": 1,
-            "Product & Design": 2,
-            "Data & AI": 3,
-            "Growth & Marketing": 4,
-            "People & Operations": 5,
-        };
-
-        const jabatanMap: Record<string, number> = {
-            "Manajer": 4,
-            "SPV": 5,
-            "STAF": 6,
-            "Junior": 7,
-        };
-
         try {
-            const data = await predictSalary({
-                umur: umurNum,
-                Divisi_Encoded: divisiMap[formData.divisi],
-                Jabatan_Encoded: jabatanMap[formData.jabatan],
-            });
+            const data = await predictSalaryByDataset(
+                formData.divisi, 
+                formData.jabatan,
+                Number(formData.pengalamanKerja) || 0,
+                umurNum
+            );
+
+            if (data.predicted_salary === 0) {
+                setError(data.message || "Data gaji untuk divisi dan jabatan tersebut tidak ditemukan.");
+                return;
+            }
 
             setResult({
                 salary: data.predicted_salary,
+                salaryFormat: data.predicted_salary_format,
                 currency: data.currency,
                 category: getSalaryCategory(data.predicted_salary),
                 insight: getInsight(formData.divisi, formData.jabatan),
@@ -119,7 +111,7 @@ export default function PredictionForm() {
             <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
                 <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Nama Karyawan
+                        Nama Karyawan <span className="text-xs font-normal text-gray-400">(opsional)</span>
                     </label>
                     <input
                         type="text"
@@ -128,7 +120,6 @@ export default function PredictionForm() {
                         onChange={handleChange}
                         placeholder="Masukkan nama karyawan"
                         className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
-                        required
                     />
                 </div>
 
@@ -252,7 +243,7 @@ export default function PredictionForm() {
 
                         <div className="flex items-baseline gap-2">
                             <p className="text-3xl font-bold text-[#13624C]">
-                                {formatRupiah(result.salary)}
+                                {result.salaryFormat || formatRupiah(result.salary)}
                             </p>
                             <span className="text-sm font-medium text-[#13624C]/60">
                                 {result.currency}
