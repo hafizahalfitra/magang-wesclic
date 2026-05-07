@@ -1,8 +1,10 @@
+'use client';
+
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import PredictionForm from "../components/PredictionForm";
 
-// Komponen Footer baru yang disesuaikan
+// Komponen Footer
 function Footer() {
   return (
     <footer className="bg-[#0A3D2F] text-white pt-16 pb-8 px-6 md:px-12 mt-20">
@@ -57,13 +59,13 @@ function Footer() {
   );
 }
 
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-gray-900">
       <Navbar />
       <Hero />
 
+      {/* Section Prediction */}
       <section id="prediksi" className="mx-auto max-w-7xl px-6 py-20 md:px-10 lg:px-12">
         <div className="mb-10 text-center">
           <h2 className="text-3xl font-bold text-[#13624C] md:text-4xl">Mulai Prediksi Gaji</h2>

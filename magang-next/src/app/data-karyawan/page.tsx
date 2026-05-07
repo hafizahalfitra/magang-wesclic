@@ -1,10 +1,12 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import Navbar from "@/src/components/Navbar";
 import EmployeeTable from "@/src/components/EmployeeTable";
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, Trash2, X } from 'lucide-react';
+import { authService } from '../../services/authService';
+import { useRouter } from 'next/navigation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -36,9 +38,23 @@ const JABATAN_MAP: Record<string, number> = Object.fromEntries(
     Object.entries(JABATAN_REVERSE).map(([k, v]) => [v, Number(k)])
 );
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-
 export default function DataKaryawanPage() {
+    const router = useRouter();
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [token, setToken] = useState<string | null>(null);
+
+    useEffect(() => {
+        const user = authService.getUser();
+        const storedToken = authService.getToken();
+        
+        if (!user || user.role !== 'HRD' || !storedToken) {
+            router.push('/login');
+        } else {
+            setToken(storedToken);
+            setIsAuthLoading(false);
+        }
+    }, [router]);
+
     const [search, setSearch] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -67,7 +83,22 @@ export default function DataKaryawanPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const { data: rawData, error, isLoading, mutate } = useSWR(`${API_BASE_URL}/employees?limit=100`, fetcher);
+    const fetcher = (url: string) => fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    }).then(res => {
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                authService.logout();
+                router.push('/login');
+            }
+            throw new Error("Gagal memuat data");
+        }
+        return res.json();
+    });
+
+    const { data: rawData, error, isLoading, mutate } = useSWR(token ? `${API_BASE_URL}/employees?limit=100` : null, fetcher);
 
     const employeeData = (rawData || []).map((emp: any) => ({
         id: emp.id,
@@ -133,16 +164,21 @@ export default function DataKaryawanPage() {
             };
 
             let res;
+            const headers = { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             if (editId) {
                 res = await fetch(`${API_BASE_URL}/employees/${editId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify(payload)
                 });
             } else {
                 res = await fetch(`${API_BASE_URL}/employees`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify(payload)
                 });
             }
@@ -171,7 +207,12 @@ export default function DataKaryawanPage() {
         if (!confirmDelete.id) return;
         
         try {
-            const res = await fetch(`${API_BASE_URL}/employees/${confirmDelete.id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE_URL}/employees/${confirmDelete.id}`, { 
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             if (!res.ok) throw new Error("Gagal menghapus");
             
             showToast("Data berhasil dihapus", "success");
@@ -182,6 +223,10 @@ export default function DataKaryawanPage() {
             setConfirmDelete({ show: false, id: null });
         }
     };
+
+    if (isAuthLoading) {
+        return <div className="flex h-screen items-center justify-center">Loading authentication...</div>;
+    }
 
     const openEdit = (emp: any) => {
         setFormData({
@@ -204,7 +249,7 @@ export default function DataKaryawanPage() {
         }, 100);
     };
 
-    const filteredData = employeeData.filter((emp) =>
+    const filteredData = employeeData.filter((emp: any) =>
         emp.nama.toLowerCase().includes(search.toLowerCase())
     );
 

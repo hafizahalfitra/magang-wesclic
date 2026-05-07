@@ -11,13 +11,62 @@ import pandas as pd
 from database import engine, get_db, Base
 from models import Employee
 import crud
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+import security
 from schemas import (
     EmployeeCreate,
     EmployeeUpdate,
     EmployeeOut,
     PredictRequest,
-    PredictResponse
+    PredictResponse,
+    ForecastRequest,
+    ForecastResponse,
+    ForecastBreakdown,
+    LoginRequest,
+    LoginResponse,
+    UserResponse
 )
+
+# Auth Config
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+# Dummy User HRD (In real app, this would be in DB)
+DUMMY_USERS = {
+    "hrd@wesclic.com": {
+        "email": "hrd@wesclic.com",
+        "hashed_password": security.get_password_hash("password123"),
+        "role": "HRD",
+        "name": "HRD Wesclic"
+    }
+}
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, security.SECRET_KEY, algorithms=[security.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = DUMMY_USERS.get(email)
+    if user is None:
+        raise credentials_exception
+    return user
+
+async def require_hrd(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "HRD":
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: HRD role required"
+        )
+    return current_user
 
 # =========================
 # CONFIG
@@ -48,6 +97,14 @@ DEFAULT_DIVISI_MAP = {
     "Data & AI": 3,
     "Growth & Marketing": 4,
     "People & Operations": 5
+}
+
+GROWTH_RATES = {
+    "Engineering": 0.025,
+    "Product & Design": 0.02,
+    "Data & AI": 0.03,
+    "Growth & Marketing": 0.018,
+    "People & Operations": 0.015
 }
 
 
@@ -118,6 +175,34 @@ if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
 
 # =========================
+# AUTHENTICATION
+# =========================
+@app.post("/login", response_model=LoginResponse, tags=["Authentication"])
+def login(payload: LoginRequest):
+    user = DUMMY_USERS.get(payload.email)
+    if not user or not security.verify_password(payload.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    access_token = security.create_access_token(data={"sub": user["email"]})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "email": user["email"],
+            "name": user["name"],
+            "role": user["role"]
+        }
+    }
+
+@app.get("/me", response_model=UserResponse, tags=["Authentication"])
+def get_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "email": current_user["email"],
+        "name": current_user["name"],
+        "role": current_user["role"]
+    }
+
+# =========================
 # BASIC ENDPOINTS
 # =========================
 @app.get("/", tags=["General"])
@@ -128,6 +213,7 @@ def root():
             "docs": "/docs",
             "employees": "/employees",
             "predict": "POST /predict",
+            "forecast_budget": "POST /forecast-budget",
             "predict_divisi": "GET /predict-divisi?divisi=Engineering",
             "health": "/health",
             "seed": "POST /seed-from-csv"
@@ -159,7 +245,7 @@ def mapping():
 # CRUD EMPLOYEES
 # =========================
 @app.post("/employees", response_model=EmployeeOut, status_code=201, tags=["Employee CRUD"], summary="Add a new Employee")
-def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db), current_user: dict = Depends(require_hrd)):
     return crud.create_employee(db=db, payload=payload)
 
 
@@ -168,13 +254,14 @@ def list_employees(
     skip: int = 0,
     limit: int = 50,
     nama: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_hrd)
 ):
     return crud.list_employees(db=db, skip=skip, limit=limit, nama=nama)
 
 
 @app.get("/employees/{employee_id}", response_model=EmployeeOut, tags=["Employee CRUD"], summary="Get specific Employee details")
-def get_employee(employee_id: int, db: Session = Depends(get_db)):
+def get_employee(employee_id: int, db: Session = Depends(get_db), current_user: dict = Depends(require_hrd)):
     emp = crud.get_employee(db=db, employee_id=employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -182,7 +269,7 @@ def get_employee(employee_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/employees/{employee_id}", response_model=EmployeeOut, tags=["Employee CRUD"], summary="Update Employee information")
-def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Depends(get_db)):
+def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_hrd)):
     emp = crud.update_employee(db=db, employee_id=employee_id, payload=payload)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -190,7 +277,7 @@ def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Dep
 
 
 @app.delete("/employees/{employee_id}", status_code=204, tags=["Employee CRUD"], summary="Remove an Employee")
-def delete_employee(employee_id: int, db: Session = Depends(get_db)):
+def delete_employee(employee_id: int, db: Session = Depends(get_db), current_user: dict = Depends(require_hrd)):
     success = crud.delete_employee(db=db, employee_id=employee_id)
     if not success:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -198,7 +285,7 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db)):
 
 
 # =========================
-# PREDICT GAJI
+# MACHINE LEARNING
 # =========================
 @app.post("/predict", response_model=PredictResponse, tags=["Machine Learning"], summary="Predict Salary Standalone")
 def predict(payload: PredictRequest):
@@ -239,9 +326,81 @@ def predict_employee(employee_id: int, db: Session = Depends(get_db)):
     }
 
 
-# =========================
-# PREDICT TOTAL GAJI BY DIVISI
-# =========================
+@app.post("/forecast-budget", response_model=ForecastResponse, tags=["Machine Learning"], summary="Forecast division budget")
+def forecast_budget(payload: ForecastRequest, current_user: dict = Depends(require_hrd)):
+    """
+    Endpoint forecasting anggaran gaji divisi.
+    """
+    if model is None:
+        raise HTTPException(status_code=500, detail=f"Model file not found: {MODEL_PATH}")
+
+    jabatan_map, divisi_map, _ = load_mapping()
+
+    if payload.division not in divisi_map:
+        raise HTTPException(status_code=400, detail=f"Divisi tidak valid: {payload.division}")
+
+    divisi_enc = divisi_map[payload.division]
+    growth_rate = GROWTH_RATES.get(payload.division, 0.0)
+
+    # Config per jabatan
+    job_configs = [
+        {"name": "Junior", "count": payload.junior_count, "enc": jabatan_map.get("Junior", 7)},
+        {"name": "STAF", "count": payload.staff_count, "enc": jabatan_map.get("STAF", 6)},
+        {"name": "SPV", "count": payload.spv_count, "enc": jabatan_map.get("SPV", 5)},
+        {"name": "Manajer", "count": payload.manager_count, "enc": jabatan_map.get("Manajer", 4)},
+    ]
+
+    breakdown = []
+    base_budget = 0
+    total_headcount = 0
+
+    for job in job_configs:
+        if job["count"] > 0:
+            # Predict salary for this position and division
+            X = np.array([[job["enc"], divisi_enc]], dtype=float)
+            pred_salary = int(round(float(model.predict(X)[0])))
+            
+            total_salary = pred_salary * job["count"]
+            base_budget += total_salary
+            total_headcount += job["count"]
+            
+            breakdown.append(ForecastBreakdown(
+                position=job["name"],
+                count=job["count"],
+                salary_per_person=pred_salary,
+                total_salary=total_salary,
+                formatted_total_salary=format_rupiah(total_salary)
+            ))
+
+    forecast_period = payload.target_month - payload.current_month
+    
+    # Logic: estimated_total_budget = base_budget + (base_budget * growth_rate * forecast_period)
+    growth_amount = base_budget * growth_rate * forecast_period
+    estimated_total_budget = int(round(base_budget + growth_amount))
+
+    # Simple insight logic
+    insight = f"Estimasi kebutuhan anggaran untuk divisi {payload.division} selama {forecast_period} bulan ke depan "
+    insight += f"dengan mempertimbangkan growth rate sebesar {growth_rate*100}% per bulan. "
+    if growth_rate > 0.02:
+        insight += "Divisi ini memiliki tingkat pertumbuhan gaji yang cukup tinggi."
+    else:
+        insight += "Tingkat pertumbuhan gaji di divisi ini relatif stabil."
+
+    return ForecastResponse(
+        division=payload.division,
+        current_month=payload.current_month,
+        target_month=payload.target_month,
+        forecast_period=forecast_period,
+        headcount=total_headcount,
+        breakdown=breakdown,
+        base_budget=base_budget,
+        growth_rate=growth_rate,
+        estimated_total_budget=estimated_total_budget,
+        formatted_total_budget=format_rupiah(estimated_total_budget),
+        insight=insight
+    )
+
+
 @app.get("/predict-divisi", tags=["Machine Learning"], summary="Predict total salary by division")
 def predict_divisi(divisi: str):
     """
