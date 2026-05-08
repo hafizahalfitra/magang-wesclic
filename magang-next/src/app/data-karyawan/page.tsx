@@ -5,10 +5,11 @@ import Navbar from "@/src/components/Navbar";
 import EmployeeTable from "@/src/components/EmployeeTable";
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, Trash2, X } from 'lucide-react';
-import { authService } from '../../services/authService';
 import { useRouter } from 'next/navigation';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+import { useAuth } from '@/src/context/AuthContext';
+import { employeeService } from '../../services/employeeService';
+import { predictSalary } from '../../services/predictionService';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 const DIVISI_REVERSE: Record<number, string> = {
     0: "Executive",
@@ -39,21 +40,20 @@ const JABATAN_MAP: Record<string, number> = Object.fromEntries(
 );
 
 export default function DataKaryawanPage() {
+    const { t } = useTranslation();
     const router = useRouter();
+    const { user, token, isLoading: authLoading } = useAuth();
     const [isAuthLoading, setIsAuthLoading] = useState(true);
-    const [token, setToken] = useState<string | null>(null);
 
     useEffect(() => {
-        const user = authService.getUser();
-        const storedToken = authService.getToken();
-        
-        if (!user || user.role !== 'HRD' || !storedToken) {
-            router.push('/login');
-        } else {
-            setToken(storedToken);
-            setIsAuthLoading(false);
+        if (!authLoading) {
+            if (!user || user.role !== 'HRD' || !token) {
+                router.push('/login');
+            } else {
+                setIsAuthLoading(false);
+            }
         }
-    }, [router]);
+    }, [user, token, authLoading, router]);
 
     const [search, setSearch] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,22 +83,9 @@ export default function DataKaryawanPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const fetcher = (url: string) => fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    }).then(res => {
-        if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-                authService.logout();
-                router.push('/login');
-            }
-            throw new Error("Gagal memuat data");
-        }
-        return res.json();
-    });
+    const fetcher = () => employeeService.getEmployees();
 
-    const { data: rawData, error, isLoading, mutate } = useSWR(token ? `${API_BASE_URL}/employees?limit=100` : null, fetcher);
+    const { data: rawData, error, isLoading, mutate } = useSWR(token ? 'employees' : null, fetcher);
 
     const employeeData = (rawData || []).map((emp: any) => ({
         id: emp.id,
@@ -130,17 +117,11 @@ export default function DataKaryawanPage() {
                 return;
             }
             try {
-                const predictRes = await fetch(`${API_BASE_URL}/predict`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        umur: umurNum,
-                        Divisi_Encoded: DIVISI_MAP[formData.divisi],
-                        Jabatan_Encoded: JABATAN_MAP[formData.jabatan]
-                    })
+                const predictData = await predictSalary({
+                    umur: umurNum,
+                    Divisi_Encoded: DIVISI_MAP[formData.divisi],
+                    Jabatan_Encoded: JABATAN_MAP[formData.jabatan]
                 });
-                if (!predictRes.ok) throw new Error("Prediksi gagal");
-                const predictData = await predictRes.json();
                 finalGaji = predictData.predicted_salary;
             } catch (err) {
                 showToast("Gagal memprediksi gaji otomatis.", "error");
@@ -163,27 +144,11 @@ export default function DataKaryawanPage() {
                 Gaji: finalGaji
             };
 
-            let res;
-            const headers = { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
             if (editId) {
-                res = await fetch(`${API_BASE_URL}/employees/${editId}`, {
-                    method: 'PUT',
-                    headers: headers,
-                    body: JSON.stringify(payload)
-                });
+                await employeeService.updateEmployee(editId, payload);
             } else {
-                res = await fetch(`${API_BASE_URL}/employees`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(payload)
-                });
+                await employeeService.addEmployee(payload);
             }
-
-            if (!res.ok) throw new Error("Gagal menyimpan data");
             
             showToast(editId ? "Data berhasil diperbarui" : "Karyawan berhasil ditambahkan", "success");
             setShowForm(false);
@@ -207,13 +172,7 @@ export default function DataKaryawanPage() {
         if (!confirmDelete.id) return;
         
         try {
-            const res = await fetch(`${API_BASE_URL}/employees/${confirmDelete.id}`, { 
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!res.ok) throw new Error("Gagal menghapus");
+            await employeeService.deleteEmployee(confirmDelete.id);
             
             showToast("Data berhasil dihapus", "success");
             mutate();
@@ -225,7 +184,16 @@ export default function DataKaryawanPage() {
     };
 
     if (isAuthLoading) {
-        return <div className="flex h-screen items-center justify-center">Loading authentication...</div>;
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-slate-900">
+                <div className="text-center">
+                    <div className="relative flex h-20 w-20 items-center justify-center mx-auto">
+                        <div className="absolute h-full w-full animate-ping rounded-full bg-[#13624C]/20"></div>
+                        <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-[#13624C] border-t-transparent"></div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     const openEdit = (emp: any) => {
@@ -268,28 +236,28 @@ export default function DataKaryawanPage() {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50">
+        <main className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
             {/* Navbar diintegrasikan di bagian atas */}
             <Navbar />
 
             <div className="mx-auto max-w-7xl px-6 py-12">
                 {/* Header Section */}
                 <div className="mb-12">
-                    <h1 className="text-4xl font-black text-slate-900">Data Karyawan</h1>
-                    <p className="mt-2 text-lg text-slate-500">
-                        Kelola dan pantau seluruh data karyawan untuk kebutuhan prediksi sistem.
+                    <h1 className="text-4xl font-black text-slate-900 dark:text-white">{t('navbar.employees')}</h1>
+                    <p className="mt-2 text-lg text-slate-500 dark:text-gray-400">
+                        {t('employees.page.desc')}
                     </p>
                 </div>
 
                 {/* Insight Cards */}
                 <div className="grid md:grid-cols-2 gap-6 mb-10">
-                    <div className="rounded-3xl bg-gradient-to-r from-[#13624C] to-[#0A3D2F] p-8 text-white shadow-xl">
-                        <h3 className="text-lg font-bold opacity-80">Total Karyawan</h3>
-                        <p className="text-4xl font-black mt-2">{employeeData.length} Orang</p>
+                    <div className="rounded-3xl bg-gradient-to-r from-[#13624C] to-[#0A3D2F] dark:from-emerald-600 dark:to-emerald-900 p-8 text-white shadow-xl">
+                        <h3 className="text-lg font-bold opacity-80">{t('forecast.result.headcount')}</h3>
+                        <p className="text-4xl font-black mt-2">{employeeData.length} {t('forecast.result.people')}</p>
                     </div>
-                    <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                        <h3 className="text-lg font-bold text-slate-900">Akurasi Sistem</h3>
-                        <p className="text-4xl font-black mt-2 text-[#13624C]">99.9%</p>
+                    <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-8 shadow-sm">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('employees.page.accuracy')}</h3>
+                        <p className="text-4xl font-black mt-2 text-[#13624C] dark:text-emerald-400">99.9%</p>
                     </div>
                 </div>
 
@@ -298,8 +266,8 @@ export default function DataKaryawanPage() {
                     <div className="relative w-full md:w-96">
                         <input
                             type="text"
-                            placeholder="Cari nama karyawan..."
-                            className="w-full rounded-2xl border border-slate-200 py-3 pl-12 pr-4 outline-none focus:border-[#13624C] transition"
+                            placeholder={t('employees.search.placeholder')}
+                            className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 py-3 pl-12 pr-4 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white transition"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -321,9 +289,9 @@ export default function DataKaryawanPage() {
                                 }, 100);
                             }
                         }}
-                        className="bg-[#13624C] text-white px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition shadow-md"
+                        className="bg-[#13624C] dark:bg-emerald-500 text-white px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition shadow-md"
                     >
-                        {showForm ? "Tutup Form" : "+ Tambah Karyawan"}
+                        {showForm ? t('employees.form.close') : t('employees.form.add')}
                     </button>
                 </div>
 
@@ -338,8 +306,8 @@ export default function DataKaryawanPage() {
                                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                                 className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${
                                     toast.type === 'success' 
-                                        ? 'bg-white border-emerald-100 text-emerald-800' 
-                                        : 'bg-white border-red-100 text-red-800'
+                                        ? 'bg-white dark:bg-slate-800 border-emerald-100 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-400' 
+                                        : 'bg-white dark:bg-slate-800 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400'
                                 }`}
                             >
                                 {toast.type === 'success' 
@@ -376,25 +344,25 @@ export default function DataKaryawanPage() {
                                 className="relative w-full max-w-md bg-white rounded-[32px] p-8 shadow-2xl border border-slate-100"
                             >
                                 <div className="flex flex-col items-center text-center">
-                                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                                        <Trash2 size={32} className="text-red-500" />
+                                    <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
+                                        <Trash2 size={32} className="text-red-500 dark:text-red-400" />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900 mb-2">Hapus Data?</h3>
-                                    <p className="text-slate-500 leading-relaxed mb-8">
-                                        Apakah Anda yakin ingin menghapus data ini? Tindakan ini <span className="font-bold text-red-500">tidak dapat dibatalkan</span>.
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{t('employees.modal.deleteTitle')}</h3>
+                                    <p className="text-slate-500 dark:text-gray-400 leading-relaxed mb-8">
+                                        {t('employees.modal.deleteDesc')} <span className="font-bold text-red-500">{t('employees.modal.deleteWarning')}</span>.
                                     </p>
                                     <div className="flex gap-3 w-full">
                                         <button 
                                             onClick={() => setConfirmDelete({ show: false, id: null })}
-                                            className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                                            className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                                         >
-                                            Batal
+                                            {t('employees.modal.cancel')}
                                         </button>
                                         <button 
                                             onClick={confirmDeleteAction}
-                                            className="flex-1 px-6 py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
+                                            className="flex-1 px-6 py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 shadow-lg shadow-red-200 dark:shadow-red-900/20 transition-all active:scale-95"
                                         >
-                                            Ya, Hapus
+                                            {t('employees.modal.confirm')}
                                         </button>
                                     </div>
                                 </div>
@@ -408,68 +376,68 @@ export default function DataKaryawanPage() {
                     <form 
                         ref={formRef}
                         onSubmit={handleSave} 
-                        className="mb-8 bg-white p-8 rounded-3xl border border-slate-200 shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6 relative scroll-mt-10"
+                        className="mb-8 bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6 relative scroll-mt-10"
                     >
-                        <div className="md:col-span-2 pb-4 border-b border-slate-100">
-                            <h2 className="text-xl font-bold text-slate-800">{editId ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h2>
+                        <div className="md:col-span-2 pb-4 border-b border-slate-100 dark:border-white/5">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">{editId ? t('employees.form.editTitle') : t('employees.form.addTitle')}</h2>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-[#13624C]">Nama</label>
+                            <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.name')}</label>
                             <input 
                                 required 
                                 type="text" 
                                 name="nama"
                                 value={formData.nama} 
                                 onChange={(e) => setFormData({...formData, nama: e.target.value})} 
-                                className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-[#13624C] transition" 
-                                placeholder="Contoh: Budi Santoso"
+                                className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" 
+                                placeholder={t('pred.form.namePlaceholder')}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-[#13624C]">Umur (18-65) <span className="text-red-500">*</span></label>
-                            <input required type="number" min="18" max="65" value={formData.umur} onChange={(e) => setFormData({...formData, umur: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-[#13624C] transition" placeholder="Contoh: 25"/>
+                            <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.age')} (18-65) <span className="text-red-500">*</span></label>
+                            <input required type="number" min="18" max="65" value={formData.umur} onChange={(e) => setFormData({...formData, umur: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder={t('pred.form.agePlaceholder')}/>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-[#13624C]">Divisi</label>
-                            <select required value={formData.divisi} onChange={(e) => setFormData({...formData, divisi: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-[#13624C] transition">
-                                <option value="">Pilih</option>
+                            <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.division')}</label>
+                            <select required value={formData.divisi} onChange={(e) => setFormData({...formData, divisi: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
+                                <option value="">{t('pred.form.selectStatus')}</option>
                                 {Object.values(DIVISI_REVERSE)
                                     .filter(d => d !== "Executive")
                                     .map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2 text-[#13624C]">Jabatan</label>
-                            <select required value={formData.jabatan} onChange={(e) => setFormData({...formData, jabatan: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-[#13624C] transition">
-                                <option value="">Pilih</option>
+                            <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.role')}</label>
+                            <select required value={formData.jabatan} onChange={(e) => setFormData({...formData, jabatan: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
+                                <option value="">{t('pred.form.selectStatus')}</option>
                                 {Object.values(JABATAN_REVERSE)
                                     .filter(j => !["CEO", "CFO", "CMO", "CTO"].includes(j))
                                     .map(j => <option key={j} value={j}>{j}</option>)}
                             </select>
                         </div>
                         <div className="md:col-span-2 mt-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700 hover:text-[#13624C] transition-colors w-max">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700 dark:text-gray-300 hover:text-[#13624C] dark:hover:text-emerald-400 transition-colors w-max">
                                 <input 
                                     type="checkbox" 
                                     checked={isManualSalary} 
                                     onChange={(e) => setIsManualSalary(e.target.checked)}
-                                    className="w-5 h-5 rounded border-slate-300 text-[#13624C] focus:ring-[#13624C]"
+                                    className="w-5 h-5 rounded border-slate-300 dark:border-white/10 text-[#13624C] dark:text-emerald-500 focus:ring-[#13624C] dark:focus:ring-emerald-400"
                                 />
-                                Input Gaji Manual (Jika tidak, gaji akan diestimasi otomatis oleh Model ML)
+                                {t('employees.form.manualGaji')}
                             </label>
                         </div>
                         {isManualSalary && (
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-semibold mb-2 text-[#13624C]">Gaji (Rp) <span className="text-red-500">*</span></label>
-                                <input required type="number" value={formData.gaji} onChange={(e) => setFormData({...formData, gaji: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 outline-none focus:border-[#13624C] transition" placeholder="Contoh: 5000000"/>
+                                <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">Gaji (Rp) <span className="text-red-500">*</span></label>
+                                <input required type="number" value={formData.gaji} onChange={(e) => setFormData({...formData, gaji: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder="Contoh: 5000000"/>
                             </div>
                         )}
-                        <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100">
-                            <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition">
-                                Batal
+                        <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
+                            <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 rounded-xl font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                {t('employees.modal.cancel')}
                             </button>
-                            <button disabled={isSubmitting} type="submit" className="bg-[#13624C] text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 shadow-md transition">
-                                {isSubmitting ? "Menyimpan..." : "Simpan"}
+                            <button disabled={isSubmitting} type="submit" className="bg-[#13624C] dark:bg-emerald-500 text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 dark:disabled:bg-slate-700 shadow-md transition">
+                                {isSubmitting ? t('employees.form.saving') : t('employees.form.save')}
                             </button>
                         </div>
                     </form>
@@ -477,26 +445,26 @@ export default function DataKaryawanPage() {
 
                 {/* Tabel Data */}
                 {isLoading && !employeeData.length ? (
-                    <div className="text-center py-12 text-slate-500 font-medium">Memuat data...</div>
+                    <div className="text-center py-12 text-slate-500 dark:text-gray-400 font-medium">{t('employees.table.loading')}</div>
                 ) : error ? (
-                    <div className="text-center py-12 text-red-500 font-medium">Gagal memuat data.</div>
+                    <div className="text-center py-12 text-red-500 dark:text-red-400 font-medium">{t('employees.table.error')}</div>
                 ) : (
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm transition-colors duration-300">
                         <EmployeeTable data={paginatedData} onDelete={handleDelete} onEdit={openEdit} />
                         
                         {/* Pagination Controls */}
                         {totalPages > 1 && (
-                            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 pt-6 gap-4">
-                                <span className="text-sm text-slate-500">
-                                    Menampilkan <span className="font-bold text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-bold text-slate-900">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> dari <span className="font-bold text-slate-900">{filteredData.length}</span> data
+                            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 dark:border-white/5 pt-6 gap-4">
+                                <span className="text-sm text-slate-500 dark:text-gray-400">
+                                    {t('employees.pagination.showing')} <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> {t('employees.pagination.of')} <span className="font-bold text-slate-900 dark:text-white">{filteredData.length}</span> {t('employees.pagination.data')}
                                 </span>
-                                <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-white/5">
                                     <button 
                                         onClick={handlePrevPage}
                                         disabled={currentPage === 1}
-                                        className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:bg-white hover:shadow-sm hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
+                                        className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
                                     >
-                                        Prev
+                                        {t('employees.pagination.prev')}
                                     </button>
                                     
                                     <div className="flex items-center px-2">
@@ -506,8 +474,8 @@ export default function DataKaryawanPage() {
                                                 onClick={() => setCurrentPage(page)}
                                                 className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${
                                                     currentPage === page 
-                                                        ? 'bg-[#13624C] text-white shadow-md' 
-                                                        : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                                                        ? 'bg-[#13624C] dark:bg-emerald-500 text-white shadow-md' 
+                                                        : 'text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:shadow-sm'
                                                 }`}
                                             >
                                                 {page}
@@ -518,9 +486,9 @@ export default function DataKaryawanPage() {
                                     <button 
                                         onClick={handleNextPage}
                                         disabled={currentPage === totalPages}
-                                        className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:bg-white hover:shadow-sm hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
+                                        className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
                                     >
-                                        Next
+                                        {t('employees.pagination.next')}
                                     </button>
                                 </div>
                             </div>

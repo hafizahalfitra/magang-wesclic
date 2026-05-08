@@ -1,59 +1,59 @@
 'use client';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { authService } from '../services/authService';
-import { User } from '../types/auth';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
+import { Sun, Moon, Globe } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function Navbar() {
-    const [user, setUser] = useState<User | null>(null);
-    const router = useRouter();
+    const { user, logout } = useAuth();
     const pathname = usePathname();
-
-    useEffect(() => {
-        // Load user from localStorage on mount and when path changes
-        setUser(authService.getUser());
-    }, [pathname]);
+    const { theme, toggleTheme, mounted } = useTheme();
+    const { language, setLanguage } = useLanguage();
+    const { t } = useTranslation();
 
     const handleLogout = () => {
-        authService.logout();
-        setUser(null);
-        router.push('/');
-        router.refresh();
+        logout();
+    };
+
+    const toggleLanguage = () => {
+        setLanguage(language === 'id' ? 'en' : 'id');
     };
 
     const navLinks = [
-        { name: 'Home', href: '/' },
-        { name: 'Tentang', href: '/#tentang' },
-        { name: 'Prediksi', href: '/#prediksi' },
+        { name: t('navbar.home'), href: '/' },
+        { name: t('navbar.about'), href: '/#tentang' },
+        { name: t('navbar.prediction'), href: '/#prediksi' },
     ];
 
     // Add HRD only links
     if (user?.role === 'HRD') {
-        navLinks.push({ name: 'Forecast', href: '/forecast' });
+        navLinks.push({ name: t('navbar.forecast'), href: '/forecast' });
     }
 
     return (
         <motion.header 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="sticky top-0 z-50 w-full border-b border-[#13624C]/10 bg-white/80 backdrop-blur-md"
+            className="sticky top-0 z-50 w-full border-b border-[#13624C]/10 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors duration-300"
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
 
                 {/* Logo & Brand */}
                 <div className="flex items-center gap-3">
                     <img
-                        src="/logo.png"
+                        src={mounted && theme === 'dark' ? "/logo-dark.png" : "/logo-light.png"}
                         alt="Wesclic Logo"
                         className="h-12 w-auto object-contain" 
                     />
                     <div className="flex flex-col gap-0 min-w-fit">
-                        <h1 className="text-base font-extrabold tracking-tight text-[#13624C] md:text-lg">
-                            Salary<span className="font-light text-gray-500">Prediction</span>
+                        <h1 className="text-base font-extrabold tracking-tight text-[#13624C] dark:text-emerald-400 md:text-lg">
+                            Salary<span className="font-light text-gray-500 dark:text-gray-400">Prediction</span>
                         </h1>
-                        <p className="hidden text-[8px] font-bold uppercase tracking-[0.2em] text-gray-400 sm:block">
+                        <p className="hidden text-[8px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 sm:block">
                             PT Wesclic Indonesia Neotech
                         </p>
                     </div>
@@ -65,7 +65,7 @@ export default function Navbar() {
                         <Link
                             key={link.name}
                             href={link.href}
-                            className="group relative py-1 text-sm font-semibold text-gray-600 transition-colors hover:text-[#13624C]"
+                            className="group relative py-1 text-sm font-semibold text-gray-600 dark:text-gray-300 transition-colors hover:text-[#13624C] dark:hover:text-emerald-400"
                         >
                             {link.name}
                             <span className="absolute inset-x-0 -bottom-1 h-0.5 scale-x-0 bg-[#13624C] transition-transform duration-300 group-hover:scale-x-100" />
@@ -77,9 +77,9 @@ export default function Navbar() {
                             <div className="h-4 w-[1px] bg-gray-200" />
                             <Link
                                 href="/data-karyawan"
-                                className="text-sm font-semibold text-gray-600 transition-colors hover:text-[#13624C]"
+                                className="text-sm font-semibold text-gray-600 dark:text-gray-300 transition-colors hover:text-[#13624C] dark:hover:text-emerald-400"
                             >
-                                Data Karyawan
+                                {t('navbar.employees')}
                             </Link>
                         </>
                     )}
@@ -87,16 +87,23 @@ export default function Navbar() {
 
                 {/* Action Button */}
                 <div className="flex items-center gap-3">
+                    <button onClick={toggleTheme} className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition">
+                        {mounted && theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                    </button>
+                    <button onClick={toggleLanguage} className="flex items-center gap-1 p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition text-sm font-bold uppercase">
+                        <Globe size={18} /> {language}
+                    </button>
+                    
                     {user ? (
                         <div className="flex items-center gap-4">
-                            <span className="hidden text-xs font-medium text-gray-500 lg:block">
-                                Hello, <span className="text-[#13624C] font-bold">{user.name}</span>
+                            <span className="hidden text-xs font-medium text-gray-500 dark:text-gray-400 lg:block">
+                                Hello, <span className="text-[#13624C] dark:text-emerald-400 font-bold">{user.name}</span>
                             </span>
                             <button
                                 onClick={handleLogout}
-                                className="inline-flex items-center justify-center rounded-full border border-[#13624C]/20 px-5 py-2 text-sm font-bold text-[#13624C] transition-all hover:bg-[#13624C]/5"
+                                className="inline-flex items-center justify-center rounded-full border border-[#13624C]/20 dark:border-emerald-400/20 px-5 py-2 text-sm font-bold text-[#13624C] dark:text-emerald-400 transition-all hover:bg-[#13624C]/5 dark:hover:bg-emerald-400/10"
                             >
-                                Logout
+                                {t('navbar.logout')}
                             </button>
                         </div>
                     ) : (
@@ -104,9 +111,9 @@ export default function Navbar() {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                className="inline-flex items-center justify-center rounded-full bg-[#13624C] px-5 py-2 text-sm font-bold text-white shadow-md shadow-[#13624C]/20 transition-all"
+                                className="inline-flex items-center justify-center rounded-full bg-[#13624C] dark:bg-emerald-500 px-5 py-2 text-sm font-bold text-white shadow-md shadow-[#13624C]/20 dark:shadow-emerald-500/20 transition-all"
                             >
-                                Login HRD
+                                {t('navbar.login')}
                             </motion.button>
                         </Link>
                     )}

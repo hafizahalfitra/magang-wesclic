@@ -1,3 +1,3 @@
 from database import engine, Base
-import models
+import db_models
 Base.metadata.create_all(bind=engine)

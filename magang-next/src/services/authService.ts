@@ -1,41 +1,22 @@
 import { LoginResponse, User } from "../types/auth";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+import { api } from "./api";
 
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await fetch(`${API_BASE_URL}/login`, {
+    const data: LoginResponse = await api("/login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({ email, password }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: "Login failed" }));
-      throw new Error(errorData.detail || "Invalid email or password");
-    }
-
-    const data: LoginResponse = await response.json();
     this.setToken(data.access_token);
     this.setUser(data.user);
     return data;
   },
 
-  async getMe(token: string): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/me`, {
+  async getMe(): Promise<User> {
+    return await api("/me", {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch user data");
-    }
-
-    return response.json();
   },
 
   logout() {

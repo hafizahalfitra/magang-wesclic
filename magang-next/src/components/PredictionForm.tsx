@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { predictSalaryByDataset } from "@/src/services/predictionService";
+import { useTranslation } from "../hooks/useTranslation";
 
 type FormDataType = {
     nama: string;
@@ -21,6 +22,7 @@ interface PredictionResult {
 }
 
 export default function PredictionForm() {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState<FormDataType>({
         nama: "",
         umur: "",
@@ -47,13 +49,13 @@ export default function PredictionForm() {
     };
 
     const getSalaryCategory = (salary: number) => {
-        if (salary < 5000000) return "Rendah";
-        if (salary <= 10000000) return "Menengah";
-        return "Tinggi";
+        if (salary < 5000000) return t('pred.form.low');
+        if (salary <= 10000000) return t('pred.form.medium');
+        return t('pred.form.high');
     };
 
     const getInsight = (divisi: string, jabatan: string) => {
-        return `Berdasarkan divisi ${divisi} dan posisi sebagai ${jabatan}, estimasi ini mencerminkan standar pasar untuk peran tersebut di industri teknologi saat ini.`;
+        return t('pred.result.insight').replace('{divisi}', divisi).replace('{jabatan}', jabatan);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +66,7 @@ export default function PredictionForm() {
         // Validasi Umur
         const umurNum = Number(formData.umur);
         if (!formData.umur || umurNum < 18 || umurNum > 65) {
-            setError("Umur wajib diisi dan harus antara 18 sampai 65 tahun.");
+            setError(t('pred.error.age'));
             return;
         }
 
@@ -79,7 +81,7 @@ export default function PredictionForm() {
             );
 
             if (data.predicted_salary === 0) {
-                setError(data.message || "Data gaji untuk divisi dan jabatan tersebut tidak ditemukan.");
+                setError(data.message || t('pred.error.notFound'));
                 return;
             }
 
@@ -92,7 +94,7 @@ export default function PredictionForm() {
             });
             setSubmitted(true);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Terjadi kesalahan yang tidak diketahui");
+            setError(err instanceof Error ? err.message : t('pred.error.unknown'));
         } finally {
             setLoading(false);
         }
@@ -110,77 +112,77 @@ export default function PredictionForm() {
         <div>
             <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
                 <div className="md:col-span-2">
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Nama Karyawan <span className="text-xs font-normal text-gray-400">(opsional)</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('pred.form.name')} <span className="text-xs font-normal text-gray-400 dark:text-gray-500">{t('pred.form.optional')}</span>
                     </label>
                     <input
                         type="text"
                         name="nama"
                         value={formData.nama}
                         onChange={handleChange}
-                        placeholder="Masukkan nama karyawan"
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        placeholder={t('pred.form.namePlaceholder')}
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                     />
                 </div>
 
                 <div className="md:col-span-2 grid gap-5 md:grid-cols-3">
                     <div>
-                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                            Umur <span className="text-red-500">*</span>
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.form.age')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
                             name="umur"
                             value={formData.umur}
                             onChange={handleChange}
-                            placeholder="Contoh: 25"
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            placeholder={t('pred.form.agePlaceholder')}
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                             required
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                            Pengalaman Kerja (Tahun)
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.form.exp')}
                         </label>
                         <input
                             type="number"
                             name="pengalamanKerja"
                             value={formData.pengalamanKerja}
                             onChange={handleChange}
-                            placeholder="Contoh: 3"
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            placeholder={t('pred.form.expPlaceholder')}
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                            Status Karyawan
+                        <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.form.status')}
                         </label>
                         <select
                             name="statusKaryawan"
                             value={formData.statusKaryawan}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         >
-                            <option value="">Pilih status</option>
-                            <option value="Kontrak">Kontrak</option>
-                            <option value="Tetap">Tetap</option>
-                            <option value="Probation">Probation</option>
+                            <option value="">{t('pred.form.selectStatus')}</option>
+                            <option value="Kontrak">{t('pred.form.contract')}</option>
+                            <option value="Tetap">{t('pred.form.permanent')}</option>
+                            <option value="Probation">{t('pred.form.probation')}</option>
                         </select>
                     </div>
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Divisi <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('pred.form.division')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="divisi"
                         value={formData.divisi}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih divisi</option>
+                        <option value="">{t('pred.form.selectDivision')}</option>
                         <option value="Engineering">Engineering</option>
                         <option value="Product & Design">Product & Design</option>
                         <option value="Data & AI">Data & AI</option>
@@ -190,17 +192,17 @@ export default function PredictionForm() {
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Jabatan <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('pred.form.role')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="jabatan"
                         value={formData.jabatan}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih jabatan</option>
+                        <option value="">{t('pred.form.selectRole')}</option>
                         <option value="Manajer">Manajer</option>
                         <option value="SPV">SPV</option>
                         <option value="STAF">STAF</option>
@@ -212,9 +214,9 @@ export default function PredictionForm() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full rounded-xl bg-[#13624C] px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-gray-400"
+                        className="w-full rounded-xl bg-[#13624C] dark:bg-emerald-500 px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-slate-700"
                     >
-                        {loading ? "Memproses..." : "Prediksi Gaji"}
+                        {loading ? t('pred.form.processing') : t('pred.form.submit')}
                     </button>
                 </div>
             </form>
@@ -226,42 +228,42 @@ export default function PredictionForm() {
             )}
 
             {submitted && result && (
-                <div className="mt-8 rounded-2xl border border-[#13624C]/20 bg-[#13624C]/5 p-6">
+                <div className="mt-8 rounded-2xl border border-[#13624C]/20 dark:border-emerald-400/20 bg-[#13624C]/5 dark:bg-emerald-400/5 p-6 transition-colors duration-300">
                     <div className="flex flex-col gap-4">
                         <div>
-                            <h3 className="text-xl font-bold text-[#13624C]">
-                                Hasil Prediksi Gaji
+                            <h3 className="text-xl font-bold text-[#13624C] dark:text-emerald-400">
+                                {t('pred.result.title')}
                             </h3>
-                            <p className="mt-3 text-gray-600">
-                                Berdasarkan data yang dimasukkan, estimasi gaji untuk{" "}
-                                <span className="font-semibold text-[#13624C]">
-                                    {formData.nama || "karyawan"}
+                            <p className="mt-3 text-gray-600 dark:text-gray-400">
+                                {t('pred.result.desc1')}{" "}
+                                <span className="font-semibold text-[#13624C] dark:text-emerald-400">
+                                    {formData.nama || t('pred.result.desc2')}
                                 </span>{" "}
-                                adalah:
+                                {t('pred.result.desc3')}
                             </p>
                         </div>
 
                         <div className="flex items-baseline gap-2">
-                            <p className="text-3xl font-bold text-[#13624C]">
+                            <p className="text-3xl font-bold text-[#13624C] dark:text-emerald-400">
                                 {result.salaryFormat || formatRupiah(result.salary)}
                             </p>
-                            <span className="text-sm font-medium text-[#13624C]/60">
+                            <span className="text-sm font-medium text-[#13624C]/60 dark:text-emerald-400/60">
                                 {result.currency}
                             </span>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                result.category === "Rendah" ? "bg-yellow-100 text-yellow-700" :
-                                result.category === "Menengah" ? "bg-blue-100 text-blue-700" :
-                                "bg-green-100 text-green-700"
+                                result.category === t('pred.form.low') ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
+                                result.category === t('pred.form.medium') ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                             }`}>
-                                Kategori: {result.category}
+                                {t('pred.result.category')}: {result.category}
                             </span>
                         </div>
 
-                        <div className="rounded-lg bg-white/50 p-4 border border-[#13624C]/10">
-                            <p className="text-sm italic text-gray-600 leading-relaxed">
+                        <div className="rounded-lg bg-white/50 dark:bg-slate-900/50 p-4 border border-[#13624C]/10 dark:border-white/5">
+                            <p className="text-sm italic text-gray-600 dark:text-gray-400 leading-relaxed">
                                 &quot;{result.insight}&quot;
                             </p>
                         </div>

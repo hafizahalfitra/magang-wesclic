@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { forecastBudget } from "@/src/services/predictionService";
+import { forecastBudget } from "@/src/services/forecastService";
 import { ForecastRequest, ForecastResponse } from "@/src/types/prediction";
-import { authService } from "../services/authService";
+import { useTranslation } from "../hooks/useTranslation";
 
 type FormDataType = {
     division: string;
@@ -16,22 +16,24 @@ type FormDataType = {
     managerCount: string;
 };
 
-const MONTHS = [
-    { value: "1", label: "Januari" },
-    { value: "2", label: "Februari" },
-    { value: "3", label: "Maret" },
-    { value: "4", label: "April" },
-    { value: "5", label: "Mei" },
-    { value: "6", label: "Juni" },
-    { value: "7", label: "Juli" },
-    { value: "8", label: "Agustus" },
-    { value: "9", label: "September" },
-    { value: "10", label: "Oktober" },
-    { value: "11", label: "November" },
-    { value: "12", label: "Desember" },
-];
-
 export default function ForecastForm() {
+    const { t } = useTranslation();
+    
+    const MONTHS = [
+        { value: "1", label: t('month.january') },
+        { value: "2", label: t('month.february') },
+        { value: "3", label: t('month.march') },
+        { value: "4", label: t('month.april') },
+        { value: "5", label: t('month.may') },
+        { value: "6", label: t('month.june') },
+        { value: "7", label: t('month.july') },
+        { value: "8", label: t('month.august') },
+        { value: "9", label: t('month.september') },
+        { value: "10", label: t('month.october') },
+        { value: "11", label: t('month.november') },
+        { value: "12", label: t('month.december') },
+    ];
+    
     const [formData, setFormData] = useState<FormDataType>({
         division: "",
         status: "",
@@ -66,7 +68,7 @@ export default function ForecastForm() {
         const tarMonth = parseInt(formData.targetMonth);
 
         if (tarMonth <= curMonth) {
-            setError("Bulan target harus lebih besar dari bulan saat ini.");
+            setError(t('forecast.error.targetMonth'));
             return;
         }
 
@@ -77,7 +79,7 @@ export default function ForecastForm() {
             parseInt(formData.managerCount);
 
         if (totalCount <= 0) {
-            setError("Minimal salah satu jumlah karyawan harus lebih dari 0.");
+            setError(t('forecast.error.minCount'));
             return;
         }
 
@@ -95,11 +97,10 @@ export default function ForecastForm() {
                 manager_count: parseInt(formData.managerCount),
             };
 
-            const token = authService.getToken() || "";
-            const data = await forecastBudget(payload, token);
+            const data = await forecastBudget(payload);
             setResult(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Terjadi kesalahan saat menghitung forecast.");
+            setError(err instanceof Error ? err.message : t('forecast.error.unknown'));
         } finally {
             setLoading(false);
         }
@@ -117,17 +118,17 @@ export default function ForecastForm() {
         <div className="space-y-8">
             <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Divisi <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('pred.form.division')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="division"
                         value={formData.division}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih divisi</option>
+                        <option value="">{t('pred.form.selectDivision')}</option>
                         <option value="Engineering">Engineering</option>
                         <option value="Product & Design">Product & Design</option>
                         <option value="Data & AI">Data & AI</option>
@@ -137,35 +138,35 @@ export default function ForecastForm() {
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Status Karyawan <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('pred.form.status')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="status"
                         value={formData.status}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih status</option>
-                        <option value="Kontrak">Kontrak</option>
-                        <option value="Tetap">Tetap</option>
-                        <option value="Probation">Probation</option>
+                        <option value="">{t('pred.form.selectStatus')}</option>
+                        <option value="Kontrak">{t('pred.form.contract')}</option>
+                        <option value="Tetap">{t('pred.form.permanent')}</option>
+                        <option value="Probation">{t('pred.form.probation')}</option>
                     </select>
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Bulan Saat Ini <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('forecast.form.currentMonth')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="currentMonth"
                         value={formData.currentMonth}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih bulan</option>
+                        <option value="">{t('pred.form.selectMonth')}</option>
                         {MONTHS.map((m) => (
                             <option key={`cur-${m.value}`} value={m.value}>{m.label}</option>
                         ))}
@@ -173,17 +174,17 @@ export default function ForecastForm() {
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#13624C]">
-                        Bulan Target <span className="text-red-500">*</span>
+                    <label className="mb-2 block text-sm font-semibold text-[#13624C] dark:text-emerald-400">
+                        {t('forecast.form.targetMonth')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         name="targetMonth"
                         value={formData.targetMonth}
                         onChange={handleChange}
-                        className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                        className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         required
                     >
-                        <option value="">Pilih bulan</option>
+                        <option value="">{t('pred.form.selectMonth')}</option>
                         {MONTHS.map((m) => (
                             <option key={`tar-${m.value}`} value={m.value}>{m.label}</option>
                         ))}
@@ -192,8 +193,8 @@ export default function ForecastForm() {
 
                 <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <label className="mb-2 block text-xs font-semibold text-[#13624C]">
-                            Jumlah Junior
+                        <label className="mb-2 block text-xs font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.role.junior')}
                         </label>
                         <input
                             type="number"
@@ -201,12 +202,12 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.juniorCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-xs font-semibold text-[#13624C]">
-                            Jumlah STAF
+                        <label className="mb-2 block text-xs font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.role.staff')}
                         </label>
                         <input
                             type="number"
@@ -214,12 +215,12 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.staffCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-xs font-semibold text-[#13624C]">
-                            Jumlah SPV
+                        <label className="mb-2 block text-xs font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.role.spv')}
                         </label>
                         <input
                             type="number"
@@ -227,12 +228,12 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.spvCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-xs font-semibold text-[#13624C]">
-                            Jumlah Manajer
+                        <label className="mb-2 block text-xs font-semibold text-[#13624C] dark:text-emerald-400">
+                            {t('pred.role.manager')}
                         </label>
                         <input
                             type="number"
@@ -240,7 +241,7 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.managerCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 px-4 py-3 outline-none transition focus:border-[#13624C]"
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
                         />
                     </div>
                 </div>
@@ -249,9 +250,9 @@ export default function ForecastForm() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full rounded-xl bg-[#13624C] px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-gray-400"
+                        className="w-full rounded-xl bg-[#13624C] dark:bg-emerald-500 px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-slate-700"
                     >
-                        {loading ? "Menghitung..." : "Hitung Forecast"}
+                        {loading ? t('pred.form.processing') : t('forecast.form.submit')}
                     </button>
                 </div>
             </form>
@@ -263,62 +264,62 @@ export default function ForecastForm() {
             )}
 
             {result && (
-                <div className="mt-8 rounded-2xl border border-[#13624C]/20 bg-white shadow-sm overflow-hidden">
-                    <div className="bg-[#13624C] p-6 text-white">
-                        <h3 className="text-xl font-bold">Hasil Forecast Anggaran</h3>
-                        <p className="text-white/80 text-sm mt-1">Estimasi kebutuhan anggaran untuk masa mendatang.</p>
+                <div className="mt-8 rounded-2xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-300">
+                    <div className="bg-[#13624C] dark:bg-slate-950 p-6 text-white">
+                        <h3 className="text-xl font-bold">{t('forecast.result.title')}</h3>
+                        <p className="text-white/80 text-sm mt-1">{t('forecast.result.insightTitle')}</p>
                     </div>
                     
                     <div className="p-6 space-y-6">
                         <div className="grid gap-6 md:grid-cols-2">
                             <div className="space-y-1">
-                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Estimasi Anggaran</p>
-                                <p className="text-3xl font-bold text-[#13624C]">{result.formatted_total_budget}</p>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.estimated')}</p>
+                                <p className="text-3xl font-bold text-[#13624C] dark:text-emerald-400">{result.formatted_total_budget}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Divisi</p>
-                                    <p className="font-semibold text-gray-800">{result.division}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.division')}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.division}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</p>
-                                    <p className="font-semibold text-gray-800">{formData.status}</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.status')}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{formData.status}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Periode</p>
-                                    <p className="font-semibold text-gray-800">{result.forecast_period} Bulan</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.period')}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.forecast_period} {t('forecast.result.months')}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Headcount</p>
-                                    <p className="font-semibold text-gray-800">{result.headcount} Orang</p>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.headcount')}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.headcount} {t('forecast.result.people')}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="border-t border-gray-100 pt-6">
-                            <h4 className="text-sm font-bold text-gray-800 mb-4">Breakdown Jabatan</h4>
+                        <div className="border-t border-gray-100 dark:border-white/5 pt-6">
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-4">{t('forecast.result.breakdown')}</h4>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
-                                    <thead className="bg-gray-50 text-gray-600">
+                                    <thead className="bg-gray-50 dark:bg-slate-950 text-gray-600 dark:text-gray-400">
                                         <tr>
-                                            <th className="px-4 py-2 font-semibold">Jabatan</th>
-                                            <th className="px-4 py-2 font-semibold">Jumlah</th>
-                                            <th className="px-4 py-2 font-semibold text-right">Gaji/Orang</th>
+                                            <th className="px-4 py-2 font-semibold">{t('pred.form.role')}</th>
+                                            <th className="px-4 py-2 font-semibold">{t('forecast.result.count')}</th>
+                                            <th className="px-4 py-2 font-semibold text-right">{t('forecast.result.salaryPerPerson')}</th>
                                             <th className="px-4 py-2 font-semibold text-right">Total</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                                         {result.breakdown.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50">
-                                                <td className="px-4 py-3 font-medium text-gray-800">{item.position}</td>
-                                                <td className="px-4 py-3 text-gray-600">{item.count}</td>
-                                                <td className="px-4 py-3 text-right text-gray-600">{formatRupiah(item.salary_per_person)}</td>
-                                                <td className="px-4 py-3 text-right font-semibold text-[#13624C]">{item.formatted_total_salary}</td>
+                                            <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50">
+                                                <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{item.position}</td>
+                                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{item.count}</td>
+                                                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{formatRupiah(item.salary_per_person)}</td>
+                                                <td className="px-4 py-3 text-right font-semibold text-[#13624C] dark:text-emerald-400">{item.formatted_total_salary}</td>
                                             </tr>
                                         ))}
-                                        <tr className="bg-[#13624C]/5">
-                                            <td colSpan={3} className="px-4 py-3 font-bold text-[#13624C]">Base Budget</td>
-                                            <td className="px-4 py-3 text-right font-bold text-[#13624C]">{formatRupiah(result.base_budget)}</td>
+                                        <tr className="bg-[#13624C]/5 dark:bg-emerald-400/5">
+                                            <td colSpan={3} className="px-4 py-3 font-bold text-[#13624C] dark:text-emerald-400">{t('forecast.result.base')}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-[#13624C] dark:text-emerald-400">{formatRupiah(result.base_budget)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -326,24 +327,24 @@ export default function ForecastForm() {
                         </div>
 
                         {result.growth_rate > 0 && (
-                            <div className="rounded-xl bg-blue-50 p-4 border border-blue-100">
+                            <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-4 border border-blue-100 dark:border-blue-900/30">
                                 <div className="flex gap-3">
-                                    <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg h-fit text-blue-600 dark:text-blue-400">
                                         📈
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Growth Factor</p>
-                                        <p className="text-sm text-blue-700 mt-1">
-                                            Mempertimbangkan growth rate sebesar <span className="font-bold">{(result.growth_rate * 100).toFixed(1)}%</span> per bulan untuk divisi {result.division}.
+                                        <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">{t('forecast.result.growthTitle')}</p>
+                                        <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                                            {t('forecast.result.growthDesc').replace('{rate}', (result.growth_rate * 100).toFixed(1)).replace('{division}', result.division)}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="rounded-xl bg-[#13624C]/5 p-5 border border-[#13624C]/10">
-                            <h4 className="text-xs font-bold text-[#13624C] uppercase tracking-wider mb-2">Insight HRD</h4>
-                            <p className="text-sm text-gray-700 leading-relaxed italic">
+                        <div className="rounded-xl bg-[#13624C]/5 dark:bg-emerald-400/5 p-5 border border-[#13624C]/10 dark:border-white/5">
+                            <h4 className="text-xs font-bold text-[#13624C] dark:text-emerald-400 uppercase tracking-wider mb-2">{t('forecast.result.hrdInsight')}</h4>
+                            <p className="text-sm text-gray-700 dark:text-gray-400 leading-relaxed italic">
                                 &quot;{result.insight}&quot;
                             </p>
                         </div>

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from models import Employee
-from schemas import EmployeeCreate, EmployeeUpdate
+from db_models import Employee
+from models.request_models import EmployeeCreate, EmployeeUpdate
 
 def create_employee(db: Session, payload: EmployeeCreate) -> Employee:
     emp = Employee(**payload.model_dump())
