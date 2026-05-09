@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { forecastBudget } from "@/src/services/forecastService";
+import { forecastBudget, getPositionCounts } from "@/src/services/forecastService";
 import { ForecastRequest, ForecastResponse } from "@/src/types/prediction";
 import { useTranslation } from "../hooks/useTranslation";
 
@@ -18,7 +18,7 @@ type FormDataType = {
 
 export default function ForecastForm() {
     const { t } = useTranslation();
-    
+
     const MONTHS = [
         { value: "1", label: t('month.january') },
         { value: "2", label: t('month.february') },
@@ -33,7 +33,7 @@ export default function ForecastForm() {
         { value: "11", label: t('month.november') },
         { value: "12", label: t('month.december') },
     ];
-    
+
     const [formData, setFormData] = useState<FormDataType>({
         division: "",
         status: "",
@@ -47,9 +47,10 @@ export default function ForecastForm() {
 
     const [result, setResult] = useState<ForecastResponse | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadingCounts, setLoadingCounts] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleChange = (
+    const handleChange = async (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target;
@@ -57,6 +58,33 @@ export default function ForecastForm() {
             ...prev,
             [name]: value,
         }));
+
+        // Auto-fetch counts when division changes
+        if (name === "division" && value) {
+            setLoadingCounts(true);
+            try {
+                const counts = await getPositionCounts(value);
+                setFormData((prev) => ({
+                    ...prev,
+                    juniorCount: (counts.junior || 0).toString(),
+                    staffCount: (counts.staff || 0).toString(),
+                    spvCount: (counts.spv || 0).toString(),
+                    managerCount: (counts.manager || 0).toString(),
+                }));
+            } catch (err) {
+                console.error("Failed to auto-fill counts:", err);
+                // Reset to 0 if data not found or error
+                setFormData((prev) => ({
+                    ...prev,
+                    juniorCount: "0",
+                    staffCount: "0",
+                    spvCount: "0",
+                    managerCount: "0",
+                }));
+            } finally {
+                setLoadingCounts(false);
+            }
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -72,10 +100,10 @@ export default function ForecastForm() {
             return;
         }
 
-        const totalCount = 
-            parseInt(formData.juniorCount) + 
-            parseInt(formData.staffCount) + 
-            parseInt(formData.spvCount) + 
+        const totalCount =
+            parseInt(formData.juniorCount) +
+            parseInt(formData.staffCount) +
+            parseInt(formData.spvCount) +
             parseInt(formData.managerCount);
 
         if (totalCount <= 0) {
@@ -135,6 +163,11 @@ export default function ForecastForm() {
                         <option value="Growth & Marketing">Growth & Marketing</option>
                         <option value="People & Operations">People & Operations</option>
                     </select>
+                    {loadingCounts && (
+                        <p className="mt-1 text-[10px] text-emerald-600 animate-pulse font-medium">
+                            {t('pred.form.processing')} Data...
+                        </p>
+                    )}
                 </div>
 
                 <div>
@@ -202,7 +235,8 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.juniorCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
+                            readOnly
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 outline-none transition text-gray-500 dark:text-gray-400 cursor-not-allowed"
                         />
                     </div>
                     <div>
@@ -215,7 +249,8 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.staffCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
+                            readOnly
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 outline-none transition text-gray-500 dark:text-gray-400 cursor-not-allowed"
                         />
                     </div>
                     <div>
@@ -228,7 +263,8 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.spvCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
+                            readOnly
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 outline-none transition text-gray-500 dark:text-gray-400 cursor-not-allowed"
                         />
                     </div>
                     <div>
@@ -241,7 +277,8 @@ export default function ForecastForm() {
                             min="0"
                             value={formData.managerCount}
                             onChange={handleChange}
-                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
+                            readOnly
+                            className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 outline-none transition text-gray-500 dark:text-gray-400 cursor-not-allowed"
                         />
                     </div>
                 </div>
@@ -269,30 +306,40 @@ export default function ForecastForm() {
                         <h3 className="text-xl font-bold">{t('forecast.result.title')}</h3>
                         <p className="text-white/80 text-sm mt-1">{t('forecast.result.insightTitle')}</p>
                     </div>
-                    
+
                     <div className="p-6 space-y-6">
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.estimated')}</p>
-                                <p className="text-3xl font-bold text-[#13624C] dark:text-emerald-400">{result.formatted_total_budget}</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-500/20">
+                                <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-1">{t('forecast.result.estimated')}</p>
+                                <p className="text-3xl font-black text-[#13624C] dark:text-emerald-400">{result.formatted_total_budget}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">Total {result.forecast_period} {t('forecast.result.months')}</span>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.division')}</p>
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.division}</p>
+                            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/10">
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1">{t('forecast.result.monthly')}</p>
+                                <p className="text-2xl font-black text-slate-900 dark:text-white">{result.formatted_monthly_forecast}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-bold text-slate-600 dark:text-gray-400 uppercase">Target Bulan ke-{result.target_month}</span>
                                 </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.status')}</p>
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{formData.status}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.period')}</p>
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.forecast_period} {t('forecast.result.months')}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.headcount')}</p>
-                                    <p className="font-semibold text-gray-800 dark:text-gray-200">{result.headcount} {t('forecast.result.people')}</p>
-                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.division')}</p>
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">{result.division}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('pred.form.status')}</p>
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">{formData.status}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.period')}</p>
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">{result.forecast_period} {t('forecast.result.months')}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('forecast.result.headcount')}</p>
+                                <p className="font-semibold text-gray-800 dark:text-gray-200">{result.headcount} {t('forecast.result.people')}</p>
                             </div>
                         </div>
 

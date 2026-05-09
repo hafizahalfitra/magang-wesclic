@@ -1,4 +1,4 @@
-import { ForecastRequest, ForecastResponse } from "@/src/types/prediction";
+import { ForecastRequest, ForecastResponse, PositionCountsResponse } from "@/src/types/prediction";
 import { api } from "./api";
 
 export async function forecastBudget(
@@ -12,5 +12,18 @@ export async function forecastBudget(
     } catch (error) {
         console.error("Forecast Error:", error);
         throw error instanceof Error ? error : new Error("Terjadi kesalahan saat menghubungi server");
+    }
+}
+
+export async function getPositionCounts(
+    divisionName: string
+): Promise<PositionCountsResponse> {
+    try {
+        return await api(`/divisi/${encodeURIComponent(divisionName)}/counts`, {
+            method: "GET",
+        });
+    } catch (error) {
+        console.error("Fetch Counts Error:", error);
+        throw error instanceof Error ? error : new Error("Terjadi kesalahan saat mengambil data jabatan");
     }
 }

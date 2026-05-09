@@ -52,11 +52,24 @@ def forecast_budget(payload: ForecastRequest) -> ForecastResponse:
             ))
 
     forecast_period = payload.target_month - payload.current_month
-    growth_amount = base_budget * growth_rate * forecast_period
-    estimated_total_budget = int(round(base_budget + growth_amount))
+    
+    # Calculate cumulative budget (Total Anggaran selama periode)
+    # n_months is the total months to be paid (from Month 2 to Month target)
+    cumulative_budget = 0
+    monthly_forecast = base_budget
+    
+    for i in range(1, forecast_period + 1):
+        # Salary for month i (linear growth)
+        monthly_salary = base_budget * (1 + growth_rate * i)
+        cumulative_budget += monthly_salary
+        if i == forecast_period:
+            monthly_forecast = int(round(monthly_salary))
 
-    insight = f"Estimasi kebutuhan anggaran untuk divisi {payload.division} selama {forecast_period} bulan ke depan "
-    insight += f"dengan mempertimbangkan growth rate sebesar {growth_rate*100}% per bulan. "
+    estimated_total_budget = int(round(cumulative_budget))
+
+    insight = f"Estimasi total anggaran untuk divisi {payload.division} selama periode {forecast_period} bulan ke depan "
+    insight += f"adalah {format_rupiah(estimated_total_budget)}. "
+    insight += f"Pertumbuhan gaji diperkirakan sebesar {growth_rate*100}% per bulan. "
     if growth_rate > 0.02:
         insight += "Divisi ini memiliki tingkat pertumbuhan gaji yang cukup tinggi."
     else:
@@ -71,6 +84,8 @@ def forecast_budget(payload: ForecastRequest) -> ForecastResponse:
         breakdown=breakdown,
         base_budget=base_budget,
         growth_rate=growth_rate,
+        monthly_forecast=monthly_forecast,
+        formatted_monthly_forecast=format_rupiah(monthly_forecast),
         estimated_total_budget=estimated_total_budget,
         formatted_total_budget=format_rupiah(estimated_total_budget),
         insight=insight

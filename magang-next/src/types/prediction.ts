@@ -59,7 +59,9 @@ export interface ForecastResponse {
   breakdown: ForecastBreakdown[];
   base_budget: number;
   growth_rate: number;
+  monthly_forecast: number;
+  formatted_monthly_forecast: string;
   estimated_total_budget: number;
   formatted_total_budget: string;
   insight: string;
-}
+}\n\nexport interface PositionCountsResponse {\n  junior: number;\n  staff: number;\n  spv: number;\n  manager: number;\n}

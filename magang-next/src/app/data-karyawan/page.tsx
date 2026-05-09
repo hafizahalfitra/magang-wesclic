@@ -57,12 +57,13 @@ export default function DataKaryawanPage() {
 
     const [search, setSearch] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     // Toast state
     const [toasts, setToasts] = useState<{ id: number, text: string, type: 'success' | 'error' }[]>([]);
-    
+
     // Confirmation Modal state
     const [confirmDelete, setConfirmDelete] = useState<{ show: boolean, id: number | null }>({ show: false, id: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const showToast = (text: string, type: 'success' | 'error') => {
         const id = Date.now();
@@ -91,13 +92,19 @@ export default function DataKaryawanPage() {
         id: emp.id,
         nama: emp.Nama,
         divisi: DIVISI_REVERSE[emp.Divisi_Encoded] || "Unknown",
+        divisi_encoded: emp.Divisi_Encoded,
         jabatan: JABATAN_REVERSE[emp.Jabatan_Encoded] || "Unknown",
         gaji: emp.Gaji
-    }));
+    })).sort((a: any, b: any) => {
+        if (a.divisi_encoded !== b.divisi_encoded) {
+            return a.divisi_encoded - b.divisi_encoded;
+        }
+        return a.nama.localeCompare(b.nama);
+    });
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validasi Umur
         const umurNum = Number(formData.umur);
         if (!formData.umur || umurNum < 18 || umurNum > 65) {
@@ -149,12 +156,12 @@ export default function DataKaryawanPage() {
             } else {
                 await employeeService.addEmployee(payload);
             }
-            
+
             showToast(editId ? "Data berhasil diperbarui" : "Karyawan berhasil ditambahkan", "success");
             setShowForm(false);
             setEditId(null);
             setFormData({ nama: "", divisi: "", jabatan: "", gaji: "", umur: "" });
-            
+
             // Refetch after save using SWR
             mutate();
         } catch (err) {
@@ -169,16 +176,18 @@ export default function DataKaryawanPage() {
     };
 
     const confirmDeleteAction = async () => {
-        if (!confirmDelete.id) return;
-        
+        if (!confirmDelete.id || isDeleting) return;
+
+        setIsDeleting(true);
         try {
             await employeeService.deleteEmployee(confirmDelete.id);
-            
+
             showToast("Data berhasil dihapus", "success");
             mutate();
         } catch (err) {
             showToast("Gagal menghapus data", "error");
         } finally {
+            setIsDeleting(false);
             setConfirmDelete({ show: false, id: null });
         }
     };
@@ -273,14 +282,14 @@ export default function DataKaryawanPage() {
                         />
                         <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
                     </div>
-                    <button 
+                    <button
                         onClick={() => {
                             setEditId(null);
                             setFormData({ nama: "", divisi: "", jabatan: "", gaji: "", umur: "" });
                             setIsManualSalary(false);
                             const wasShown = showForm;
                             setShowForm(!showForm);
-                            
+
                             if (!wasShown) {
                                 setTimeout(() => {
                                     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -304,18 +313,17 @@ export default function DataKaryawanPage() {
                                 initial={{ opacity: 0, x: 50, scale: 0.9 }}
                                 animate={{ opacity: 1, x: 0, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                                className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${
-                                    toast.type === 'success' 
-                                        ? 'bg-white dark:bg-slate-800 border-emerald-100 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-400' 
+                                className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${toast.type === 'success'
+                                        ? 'bg-white dark:bg-slate-800 border-emerald-100 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-400'
                                         : 'bg-white dark:bg-slate-800 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400'
-                                }`}
+                                    }`}
                             >
-                                {toast.type === 'success' 
-                                    ? <CheckCircle size={20} className="text-emerald-500" /> 
+                                {toast.type === 'success'
+                                    ? <CheckCircle size={20} className="text-emerald-500" />
                                     : <AlertCircle size={20} className="text-red-500" />
                                 }
                                 <span className="text-sm font-bold">{toast.text}</span>
-                                <button 
+                                <button
                                     onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
                                     className="ml-2 text-slate-300 hover:text-slate-500 transition-colors"
                                 >
@@ -330,14 +338,14 @@ export default function DataKaryawanPage() {
                 <AnimatePresence>
                     {confirmDelete.show && (
                         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setConfirmDelete({ show: false, id: null })}
                                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                             />
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -352,17 +360,19 @@ export default function DataKaryawanPage() {
                                         {t('employees.modal.deleteDesc')} <span className="font-bold text-red-500">{t('employees.modal.deleteWarning')}</span>.
                                     </p>
                                     <div className="flex gap-3 w-full">
-                                        <button 
+                                        <button
+                                            disabled={isDeleting}
                                             onClick={() => setConfirmDelete({ show: false, id: null })}
-                                            className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                            className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
                                         >
                                             {t('employees.modal.cancel')}
                                         </button>
-                                        <button 
+                                        <button
+                                            disabled={isDeleting}
                                             onClick={confirmDeleteAction}
-                                            className="flex-1 px-6 py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 shadow-lg shadow-red-200 dark:shadow-red-900/20 transition-all active:scale-95"
+                                            className="flex-1 px-6 py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 shadow-lg shadow-red-200 dark:shadow-red-900/20 transition-all active:scale-95 disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:shadow-none"
                                         >
-                                            {t('employees.modal.confirm')}
+                                            {isDeleting ? t('employees.form.saving') : t('employees.modal.confirm')}
                                         </button>
                                     </div>
                                 </div>
@@ -373,9 +383,9 @@ export default function DataKaryawanPage() {
 
                 {/* Add/Edit Form */}
                 {showForm && (
-                    <form 
+                    <form
                         ref={formRef}
-                        onSubmit={handleSave} 
+                        onSubmit={handleSave}
                         className="mb-8 bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6 relative scroll-mt-10"
                     >
                         <div className="md:col-span-2 pb-4 border-b border-slate-100 dark:border-white/5">
@@ -383,23 +393,23 @@ export default function DataKaryawanPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.name')}</label>
-                            <input 
-                                required 
-                                type="text" 
+                            <input
+                                required
+                                type="text"
                                 name="nama"
-                                value={formData.nama} 
-                                onChange={(e) => setFormData({...formData, nama: e.target.value})} 
-                                className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" 
+                                value={formData.nama}
+                                onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                                className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition"
                                 placeholder={t('pred.form.namePlaceholder')}
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.age')} (18-65) <span className="text-red-500">*</span></label>
-                            <input required type="number" min="18" max="65" value={formData.umur} onChange={(e) => setFormData({...formData, umur: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder={t('pred.form.agePlaceholder')}/>
+                            <input required type="number" min="18" max="65" value={formData.umur} onChange={(e) => setFormData({ ...formData, umur: e.target.value })} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder={t('pred.form.agePlaceholder')} />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.division')}</label>
-                            <select required value={formData.divisi} onChange={(e) => setFormData({...formData, divisi: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
+                            <select required value={formData.divisi} onChange={(e) => setFormData({ ...formData, divisi: e.target.value })} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
                                 <option value="">{t('pred.form.selectStatus')}</option>
                                 {Object.values(DIVISI_REVERSE)
                                     .filter(d => d !== "Executive")
@@ -408,7 +418,7 @@ export default function DataKaryawanPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">{t('pred.form.role')}</label>
-                            <select required value={formData.jabatan} onChange={(e) => setFormData({...formData, jabatan: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
+                            <select required value={formData.jabatan} onChange={(e) => setFormData({ ...formData, jabatan: e.target.value })} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition">
                                 <option value="">{t('pred.form.selectStatus')}</option>
                                 {Object.values(JABATAN_REVERSE)
                                     .filter(j => !["CEO", "CFO", "CMO", "CTO"].includes(j))
@@ -417,9 +427,9 @@ export default function DataKaryawanPage() {
                         </div>
                         <div className="md:col-span-2 mt-2">
                             <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700 dark:text-gray-300 hover:text-[#13624C] dark:hover:text-emerald-400 transition-colors w-max">
-                                <input 
-                                    type="checkbox" 
-                                    checked={isManualSalary} 
+                                <input
+                                    type="checkbox"
+                                    checked={isManualSalary}
                                     onChange={(e) => setIsManualSalary(e.target.checked)}
                                     className="w-5 h-5 rounded border-slate-300 dark:border-white/10 text-[#13624C] dark:text-emerald-500 focus:ring-[#13624C] dark:focus:ring-emerald-400"
                                 />
@@ -429,7 +439,7 @@ export default function DataKaryawanPage() {
                         {isManualSalary && (
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-semibold mb-2 text-[#13624C] dark:text-emerald-400">Gaji (Rp) <span className="text-red-500">*</span></label>
-                                <input required type="number" value={formData.gaji} onChange={(e) => setFormData({...formData, gaji: e.target.value})} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder="Contoh: 5000000"/>
+                                <input required type="number" value={formData.gaji} onChange={(e) => setFormData({ ...formData, gaji: e.target.value })} className="w-full border border-slate-200 dark:border-white/10 rounded-xl p-3 outline-none focus:border-[#13624C] dark:focus:border-emerald-400 bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition" placeholder="Contoh: 5000000" />
                             </div>
                         )}
                         <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
@@ -451,7 +461,7 @@ export default function DataKaryawanPage() {
                 ) : (
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm transition-colors duration-300">
                         <EmployeeTable data={paginatedData} onDelete={handleDelete} onEdit={openEdit} />
-                        
+
                         {/* Pagination Controls */}
                         {totalPages > 1 && (
                             <div className="mt-8 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 dark:border-white/5 pt-6 gap-4">
@@ -459,31 +469,30 @@ export default function DataKaryawanPage() {
                                     {t('employees.pagination.showing')} <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> {t('employees.pagination.of')} <span className="font-bold text-slate-900 dark:text-white">{filteredData.length}</span> {t('employees.pagination.data')}
                                 </span>
                                 <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-white/5">
-                                    <button 
+                                    <button
                                         onClick={handlePrevPage}
                                         disabled={currentPage === 1}
                                         className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
                                     >
                                         {t('employees.pagination.prev')}
                                     </button>
-                                    
+
                                     <div className="flex items-center px-2">
-                                        {Array.from({length: totalPages}, (_, i) => i + 1).map(page => (
-                                            <button 
-                                                key={page} 
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                            <button
+                                                key={page}
                                                 onClick={() => setCurrentPage(page)}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${
-                                                    currentPage === page 
-                                                        ? 'bg-[#13624C] dark:bg-emerald-500 text-white shadow-md' 
+                                                className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${currentPage === page
+                                                        ? 'bg-[#13624C] dark:bg-emerald-500 text-white shadow-md'
                                                         : 'text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:shadow-sm'
-                                                }`}
+                                                    }`}
                                             >
                                                 {page}
                                             </button>
                                         ))}
                                     </div>
 
-                                    <button 
+                                    <button
                                         onClick={handleNextPage}
                                         disabled={currentPage === totalPages}
                                         className="px-4 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"

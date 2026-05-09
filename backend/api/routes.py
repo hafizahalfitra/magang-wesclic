@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Body, Form, Request
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
@@ -11,7 +12,7 @@ from models.request_models import (
     EmployeeCreate, EmployeeUpdate, PredictRequest, ForecastRequest, LoginRequest
 )
 from models.response_models import (
-    EmployeeOut, PredictResponse, ForecastResponse, LoginResponse, UserResponse
+    EmployeeOut, PredictResponse, ForecastResponse, LoginResponse, UserResponse, PositionCountsResponse
 )
 from services.prediction_service import (
     predict_salary, predict_employee_salary, predict_divisi, predict_salary_dataset, get_model
@@ -24,10 +25,49 @@ router = APIRouter()
 # =========================
 # AUTHENTICATION
 # =========================
+class OAuth2PasswordRequestFormOptional:
+    """Custom dependency to support both JSON and Form data for login."""
+    def __init__(
+        self,
+        username: Optional[str] = Form(None),
+        password: Optional[str] = Form(None),
+        grant_type: Optional[str] = Form(None),
+        scope: Optional[str] = Form(""),
+        client_id: Optional[str] = Form(None),
+        client_secret: Optional[str] = Form(None),
+    ):
+        self.username = username
+        self.password = password
+
 @router.post("/login", response_model=LoginResponse, tags=["Authentication"])
-def login(payload: LoginRequest):
-    user = DUMMY_USERS.get(payload.email)
-    if not user or not verify_password(payload.password, user["hashed_password"]):
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestFormOptional = Depends()
+):
+    email = None
+    pass_val = None
+
+    # 1. Coba ambil dari Form (Swagger / OAuth2)
+    if form_data and form_data.username:
+        email = form_data.username
+        pass_val = form_data.password
+    
+    # 2. Coba ambil dari JSON (Frontend) jika Form kosong
+    if not email:
+        try:
+            # Check if content type is JSON
+            if request.headers.get("content-type") == "application/json":
+                payload = await request.json()
+                email = payload.get("email")
+                pass_val = payload.get("password")
+        except Exception:
+            pass
+    
+    if not email or not pass_val:
+        raise HTTPException(status_code=401, detail="Email and password are required")
+    
+    user = DUMMY_USERS.get(email)
+    if not user or not verify_password(pass_val, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     access_token = create_access_token(data={"sub": user["email"]})
@@ -180,6 +220,45 @@ def list_divisi_from_csv():
         "total": len(divisi_list),
         "divisi": divisi_list
     }
+
+@router.get("/divisi/{divisi_name}/counts", response_model=PositionCountsResponse, tags=["General"], summary="Get employee counts by position for a division")
+def get_divisi_counts(divisi_name: str, db: Session = Depends(get_db)):
+    jabatan_map, divisi_map, _ = load_mapping()
+    
+    if divisi_name not in divisi_map:
+        raise HTTPException(status_code=404, detail=f"Divisi '{divisi_name}' tidak ditemukan")
+    
+    divisi_enc = divisi_map[divisi_name]
+    
+    from db_models import Employee
+    from sqlalchemy import func
+    
+    # Mapping for target positions: Manajer: 4, SPV: 5, STAF: 6, Junior: 7
+    counts = db.query(Employee.Jabatan_Encoded, func.count(Employee.id)) \
+        .filter(Employee.Divisi_Encoded == divisi_enc) \
+        .filter(Employee.Jabatan_Encoded.in_([4, 5, 6, 7])) \
+        .group_by(Employee.Jabatan_Encoded) \
+        .all()
+    
+    res = {
+        "junior": 0,
+        "staff": 0,
+        "spv": 0,
+        "manager": 0
+    }
+    
+    map_back = {
+        4: "manager",
+        5: "spv",
+        6: "staff",
+        7: "junior"
+    }
+    
+    for jab_enc, count in counts:
+        if jab_enc in map_back:
+            res[map_back[jab_enc]] = count
+            
+    return res
 
 # =========================
 # SEED FROM CSV

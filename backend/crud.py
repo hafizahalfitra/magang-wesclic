@@ -17,7 +17,7 @@ def list_employees(db: Session, skip: int = 0, limit: int = 50, nama: str | None
     if nama and nama.strip():
         keyword = f"%{nama.strip()}%"
         q = q.filter(Employee.Nama.ilike(keyword))
-    return q.offset(skip).limit(limit).all()
+    return q.order_by(Employee.Divisi_Encoded, Employee.Nama).offset(skip).limit(limit).all()
 
 def update_employee(db: Session, employee_id: int, payload: EmployeeUpdate) -> Employee | None:
     emp = get_employee(db, employee_id)

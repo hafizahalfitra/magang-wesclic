@@ -31,6 +31,8 @@ class ForecastResponse(BaseModel):
     breakdown: List[ForecastBreakdown]
     base_budget: int
     growth_rate: float
+    monthly_forecast: int
+    formatted_monthly_forecast: str
     estimated_total_budget: int
     formatted_total_budget: str
     insight: str
@@ -44,3 +46,9 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class PositionCountsResponse(BaseModel):
+    junior: int
+    staff: int
+    spv: int
+    manager: int

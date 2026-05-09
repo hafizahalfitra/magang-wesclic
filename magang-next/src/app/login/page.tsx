@@ -42,7 +42,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-white transition-colors duration-300">
       <Navbar />
-      
+
       <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8 rounded-3xl border border-[#13624C]/15 dark:border-white/10 bg-white dark:bg-slate-800 p-10 shadow-xl">
           <div className="text-center">
@@ -51,7 +51,7 @@ export default function LoginPage() {
               {t('login.page.subtitle')}
             </p>
           </div>
-          
+
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4 rounded-md">
               <div>
@@ -64,7 +64,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 outline-none transition focus:border-[#13624C] dark:focus:border-emerald-400 text-gray-900 dark:text-white"
-                  placeholder="hrd@wesclic.com"
+                  placeholder="your email@.com"
                 />
               </div>
               <div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-          
+
           <div className="text-center text-xs text-gray-500 pt-4">
             <p>© 2026 PT Wesclic Indonesia Neotech. All rights reserved.</p>
           </div>

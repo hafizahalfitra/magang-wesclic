@@ -6,13 +6,11 @@
   "navbar.employees": "Data Karyawan",
   "navbar.login": "Login HRD",
   "navbar.logout": "Logout",
-  
   "hero.title1": "Kalkulator Gaji Berbasis",
   "hero.title2": "Kecerdasan Buatan",
   "hero.subtitle": "Dapatkan estimasi gaji yang akurat, real-time, dan didukung AI sesuai keahlian, pengalaman, dan jabatan Anda.",
   "hero.cta": "Coba Sekarang",
   "hero.secondary": "Pelajari Sistem",
-
   "about.title": "Tentang Sistem",
   "about.desc": "Dirancang untuk memudahkan HRD dan manajemen dalam menentukan standar remunerasi. Data dikirim langsung ke API AI kami untuk diproses dalam hitungan detik.",
   "about.accuracy": "Akurasi Model",
@@ -22,10 +20,8 @@
   "about.output": "Output",
   "about.realtime": "Real-time Prediction",
   "about.sl": "Supervised Learning",
-
   "prediction.section.title": "Mulai Prediksi Gaji",
   "prediction.section.desc": "Masukkan data karyawan untuk mendapatkan estimasi gaji berdasarkan parameter yang telah ditentukan.",
-
   "pred.form.name": "Nama Karyawan",
   "pred.form.optional": "(opsional)",
   "pred.form.namePlaceholder": "Masukkan nama karyawan",
@@ -49,23 +45,19 @@
   "pred.form.high": "Tinggi",
   "pred.form.selectMonth": "Pilih bulan",
   "pred.form.gaji": "Gaji",
-
   "pred.role.junior": "Jumlah Junior",
   "pred.role.staff": "Jumlah STAF",
   "pred.role.spv": "Jumlah SPV",
   "pred.role.manager": "Jumlah Manajer",
-
   "pred.result.title": "Hasil Prediksi Gaji",
   "pred.result.desc1": "Berdasarkan data yang dimasukkan, estimasi gaji untuk",
   "pred.result.desc2": "karyawan",
   "pred.result.desc3": "adalah:",
   "pred.result.category": "Kategori",
   "pred.result.insight": "Berdasarkan divisi {divisi} dan posisi sebagai {jabatan}, estimasi ini mencerminkan standar pasar untuk peran tersebut di industri teknologi saat ini.",
-
   "pred.error.age": "Umur wajib diisi dan harus antara 18 sampai 65 tahun.",
   "pred.error.notFound": "Data gaji untuk divisi dan jabatan tersebut tidak ditemukan.",
   "pred.error.unknown": "Terjadi kesalahan yang tidak diketahui",
-
   "footer.motto": "We Make IT Better.",
   "footer.desc": "Kami hadir untuk menyederhanakan kompleksitas, mengubah ide menjadi inovasi, dan memastikan setiap teknologi yang kami bangun memberikan dampak nyata buat bisnis kamu.",
   "footer.linksTitle": "Tautan Cepat",
@@ -80,7 +72,6 @@
   "footer.privacy": "Kebijakan Privasi",
   "footer.terms": "Syarat Layanan",
   "footer.sitemap": "Peta Situs",
-
   "forecast.page.hrd": "HRD Intelligence",
   "forecast.page.title1": "Forecast",
   "forecast.page.title2": "Anggaran",
@@ -90,18 +81,17 @@
   "forecast.page.cardDesc": "Mengintegrasikan model Supervised Learning untuk memprediksi standar remunerasi secara otomatis. Sistem menyesuaikan input data dengan pertumbuhan tahunan divisi secara dinamis untuk hasil yang lebih akurat.",
   "forecast.page.configTitle": "Konfigurasi Forecast",
   "forecast.page.footer": "© 2026 PT Wesclic Indonesia Neotech",
-
   "forecast.form.currentMonth": "Bulan Saat Ini",
   "forecast.form.targetMonth": "Bulan Target",
   "forecast.form.submit": "Mulai Forecast",
   "forecast.form.employeeCount": "Jumlah Karyawan Berdasarkan Jabatan",
-  
   "forecast.result.title": "Hasil Forecast Anggaran",
   "forecast.result.insight": "Insight",
   "forecast.result.insightTitle": "Estimasi kebutuhan anggaran untuk masa mendatang.",
   "forecast.result.headcount": "Total Karyawan",
   "forecast.result.base": "Anggaran Dasar (Bulan 1)",
   "forecast.result.estimated": "Total Estimasi Anggaran",
+  "forecast.result.monthly": "Estimasi Per Bulan",
   "forecast.result.period": "Periode",
   "forecast.result.months": "Bulan",
   "forecast.result.people": "Orang",
@@ -111,11 +101,9 @@
   "forecast.result.growthTitle": "Growth Factor",
   "forecast.result.growthDesc": "Mempertimbangkan growth rate sebesar {rate}% per bulan untuk divisi {division}.",
   "forecast.result.hrdInsight": "Insight HRD",
-
   "forecast.error.targetMonth": "Bulan target harus lebih besar dari bulan saat ini.",
   "forecast.error.minCount": "Minimal salah satu jumlah karyawan harus lebih dari 0.",
   "forecast.error.unknown": "Terjadi kesalahan saat menghitung forecast.",
-
   "month.january": "Januari",
   "month.february": "Februari",
   "month.march": "Maret",
@@ -128,7 +116,6 @@
   "month.october": "Oktober",
   "month.november": "November",
   "month.december": "Desember",
-
   "employees.page.desc": "Kelola dan pantau seluruh data karyawan untuk kebutuhan prediksi sistem.",
   "employees.page.accuracy": "Akurasi Sistem",
   "employees.search.placeholder": "Cari nama karyawan...",
@@ -154,7 +141,6 @@
   "employees.pagination.data": "data",
   "employees.pagination.prev": "Prev",
   "employees.pagination.next": "Next",
-
   "login.page.subtitle": "Masuk untuk mengakses fitur Forecast dan Data Karyawan.",
   "login.form.email": "Email Address",
   "login.form.password": "Password",
