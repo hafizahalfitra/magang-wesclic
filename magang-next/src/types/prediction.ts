@@ -64,4 +64,11 @@ export interface ForecastResponse {
   estimated_total_budget: number;
   formatted_total_budget: string;
   insight: string;
-}\n\nexport interface PositionCountsResponse {\n  junior: number;\n  staff: number;\n  spv: number;\n  manager: number;\n}
+}
+
+export interface PositionCountsResponse {
+  junior: number;
+  staff: number;
+  spv: number;
+  manager: number;
+}

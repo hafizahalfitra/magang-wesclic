@@ -10,6 +10,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { employeeService } from '../../services/employeeService';
 import { predictSalary } from '../../services/predictionService';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { exportEmployeesToExcel } from "@/src/utils/exportHelper";
 
 const DIVISI_REVERSE: Record<number, string> = {
     0: "Executive",
@@ -57,6 +58,7 @@ export default function DataKaryawanPage() {
 
     const [search, setSearch] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Toast state
     const [toasts, setToasts] = useState<{ id: number, text: string, type: 'success' | 'error' }[]>([]);
@@ -282,6 +284,7 @@ export default function DataKaryawanPage() {
                         />
                         <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
                     </div>
+                    <div className="flex gap-2">
                     <button
                         onClick={() => {
                             setEditId(null);
@@ -298,10 +301,39 @@ export default function DataKaryawanPage() {
                                 }, 100);
                             }
                         }}
-                        className="bg-[#13624C] dark:bg-emerald-500 text-white px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition shadow-md"
+                        className="rounded-xl bg-[#13624C] dark:bg-emerald-500 px-6 py-3 font-semibold text-white transition hover:opacity-90"
                     >
                         {showForm ? t('employees.form.close') : t('employees.form.add')}
                     </button>
+                    <button
+                        onClick={async () => {
+                            if (employeeData && employeeData.length > 0) {
+                                setIsExporting(true);
+                                try {
+                                    await exportEmployeesToExcel(employeeData);
+                                } catch (e) {
+                                    console.error(e);
+                                    showToast("Gagal mengekspor data", "error");
+                                } finally {
+                                    setIsExporting(false);
+                                }
+                            } else {
+                                showToast("Tidak ada data untuk diexport", "error");
+                            }
+                        }}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 rounded-xl bg-slate-800 dark:bg-white/10 px-6 py-3 font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-white/20 disabled:opacity-50"
+                    >
+                        {isExporting ? (
+                            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        )}
+                        {isExporting ? t('pred.form.processing') : "Export Excel"}
+                    </button>
+                    </div>
                 </div>
 
                 {/* Toast Notifications */}

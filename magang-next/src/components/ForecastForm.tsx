@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { forecastBudget, getPositionCounts } from "@/src/services/forecastService";
 import { ForecastRequest, ForecastResponse } from "@/src/types/prediction";
+import { exportForecastToExcel } from "@/src/utils/exportHelper";
 import { useTranslation } from "../hooks/useTranslation";
 
 type FormDataType = {
@@ -49,6 +50,7 @@ export default function ForecastForm() {
     const [loading, setLoading] = useState(false);
     const [loadingCounts, setLoadingCounts] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
 
     const handleChange = async (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -302,9 +304,37 @@ export default function ForecastForm() {
 
             {result && (
                 <div className="mt-8 rounded-2xl border border-[#13624C]/20 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors duration-300">
-                    <div className="bg-[#13624C] dark:bg-slate-950 p-6 text-white">
-                        <h3 className="text-xl font-bold">{t('forecast.result.title')}</h3>
-                        <p className="text-white/80 text-sm mt-1">{t('forecast.result.insightTitle')}</p>
+                    <div className="bg-[#13624C] dark:bg-slate-950 p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-xl font-bold">{t('forecast.result.title')}</h3>
+                            <p className="text-white/80 text-sm mt-1">{t('forecast.result.insightTitle')}</p>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (result) {
+                                    setExporting(true);
+                                    try {
+                                        await exportForecastToExcel(result);
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Gagal mengekspor data");
+                                    } finally {
+                                        setExporting(false);
+                                    }
+                                }
+                            }}
+                            disabled={exporting}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all text-sm font-semibold disabled:opacity-50"
+                        >
+                            {exporting ? (
+                                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            )}
+                            {exporting ? t('pred.form.processing') : "Export Excel"}
+                        </button>
                     </div>
 
                     <div className="p-6 space-y-6">
