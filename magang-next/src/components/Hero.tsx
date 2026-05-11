@@ -28,7 +28,7 @@ export default function Hero() {
                             AI-Powered Insight
                         </div>
 
-                        <h2 className="mt-8 text-5xl font-black leading-[1.15] tracking-tight text-[#13624C] dark:text-emerald-400 lg:text-7xl">
+                        <h2 className="mt-8 text-4xl sm:text-5xl font-black leading-[1.15] tracking-tight text-[#13624C] dark:text-emerald-400 lg:text-7xl">
                             {t('hero.title1')} <span className="italic font-light">{t('hero.title2')}</span>
                         </h2>
 

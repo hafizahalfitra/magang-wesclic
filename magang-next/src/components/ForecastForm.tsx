@@ -378,7 +378,7 @@ export default function ForecastForm() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-gray-50 dark:bg-slate-950 text-gray-600 dark:text-gray-400">
-                                        <tr>
+                                        <tr className="whitespace-nowrap">
                                             <th className="px-4 py-2 font-semibold">{t('pred.form.role')}</th>
                                             <th className="px-4 py-2 font-semibold">{t('forecast.result.count')}</th>
                                             <th className="px-4 py-2 font-semibold text-right">{t('forecast.result.salaryPerPerson')}</th>
@@ -387,14 +387,14 @@ export default function ForecastForm() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                                         {result.breakdown.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50">
+                                            <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 whitespace-nowrap">
                                                 <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{item.position}</td>
                                                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{item.count}</td>
                                                 <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{formatRupiah(item.salary_per_person)}</td>
                                                 <td className="px-4 py-3 text-right font-semibold text-[#13624C] dark:text-emerald-400">{item.formatted_total_salary}</td>
                                             </tr>
                                         ))}
-                                        <tr className="bg-[#13624C]/5 dark:bg-emerald-400/5">
+                                        <tr className="bg-[#13624C]/5 dark:bg-emerald-400/5 whitespace-nowrap">
                                             <td colSpan={3} className="px-4 py-3 font-bold text-[#13624C] dark:text-emerald-400">{t('forecast.result.base')}</td>
                                             <td className="px-4 py-3 text-right font-bold text-[#13624C] dark:text-emerald-400">{formatRupiah(result.base_budget)}</td>
                                         </tr>

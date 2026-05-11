@@ -44,7 +44,7 @@ export default function LoginPage() {
       <Navbar />
 
       <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md space-y-8 rounded-3xl border border-[#13624C]/15 dark:border-white/10 bg-white dark:bg-slate-800 p-10 shadow-xl">
+        <div className="w-full max-w-md space-y-8 rounded-3xl border border-[#13624C]/15 dark:border-white/10 bg-white dark:bg-slate-800 p-6 md:p-10 shadow-xl">
           <div className="text-center">
             <h2 className="text-3xl font-bold tracking-tight text-[#13624C] dark:text-emerald-400">{t('navbar.login')}</h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

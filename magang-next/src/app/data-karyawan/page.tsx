@@ -284,7 +284,7 @@ export default function DataKaryawanPage() {
                         />
                         <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                     <button
                         onClick={() => {
                             setEditId(null);
@@ -301,7 +301,7 @@ export default function DataKaryawanPage() {
                                 }, 100);
                             }
                         }}
-                        className="rounded-xl bg-[#13624C] dark:bg-emerald-500 px-6 py-3 font-semibold text-white transition hover:opacity-90"
+                        className="w-full sm:w-auto rounded-xl bg-[#13624C] dark:bg-emerald-500 px-6 py-3 font-semibold text-white transition hover:opacity-90 flex justify-center items-center"
                     >
                         {showForm ? t('employees.form.close') : t('employees.form.add')}
                     </button>
@@ -322,7 +322,7 @@ export default function DataKaryawanPage() {
                             }
                         }}
                         disabled={isExporting}
-                        className="flex items-center gap-2 rounded-xl bg-slate-800 dark:bg-white/10 px-6 py-3 font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-white/20 disabled:opacity-50"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-slate-800 dark:bg-white/10 px-6 py-3 font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-white/20 disabled:opacity-50"
                     >
                         {isExporting ? (
                             <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
@@ -500,7 +500,7 @@ export default function DataKaryawanPage() {
                                 <span className="text-sm text-slate-500 dark:text-gray-400">
                                     {t('employees.pagination.showing')} <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> {t('employees.pagination.of')} <span className="font-bold text-slate-900 dark:text-white">{filteredData.length}</span> {t('employees.pagination.data')}
                                 </span>
-                                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-white/5">
+                                <div className="flex flex-wrap items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-white/5 w-full sm:w-auto">
                                     <button
                                         onClick={handlePrevPage}
                                         disabled={currentPage === 1}
@@ -509,7 +509,7 @@ export default function DataKaryawanPage() {
                                         {t('employees.pagination.prev')}
                                     </button>
 
-                                    <div className="flex items-center px-2">
+                                    <div className="flex flex-wrap justify-center items-center px-1 sm:px-2 gap-1">
                                         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                                             <button
                                                 key={page}

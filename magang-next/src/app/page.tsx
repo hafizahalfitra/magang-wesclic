@@ -64,8 +64,8 @@ function Footer() {
 
       {/* Baris Bawah */}
       <div className="mx-auto max-w-7xl mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs text-white/60 gap-4">
-        <p>{t('footer.copyright')}</p>
-        <div className="flex gap-6">
+        <p className="text-center">{t('footer.copyright')}</p>
+        <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
           <span className="hover:text-white cursor-pointer">{t('footer.privacy')}</span>
           <span className="hover:text-white cursor-pointer">{t('footer.terms')}</span>
           <span className="hover:text-white cursor-pointer">{t('footer.sitemap')}</span>
